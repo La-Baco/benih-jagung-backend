@@ -1,0 +1,8 @@
+{
+  "sisi_potong": 1330,
+  "batas_tepi": 50,
+  "max_wh_terbesar": 1230,
+  "lebar_acuan": 3000,
+  "kernel_opening": 21,
+  "ukuran_citra": 224
+}

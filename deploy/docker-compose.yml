@@ -1,0 +1,68 @@
+# Menjalankan sistem di VPS: MySQL, layanan Flask, dan aplikasi Laravel.
+# Hanya Laravel yang dibuka, itu pun ke 127.0.0.1:8091; nginx VPS meneruskan kedua domain ke sana.
+# Flask dan MySQL hanya bisa dihubungi dari jaringan internal kontainer ini.
+#
+# Menjalankan (dari folder deploy):
+#   sudo docker compose --env-file .env.produksi up -d --build
+
+name: skripsi-danur
+
+services:
+  db:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: klasifikasi_benih
+      MYSQL_USER: benih
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    volumes:
+      - mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-p${DB_ROOT_PASSWORD}"]
+      interval: 10s
+      retries: 12
+
+  flask:
+    build: ../python
+    restart: unless-stopped
+    environment:
+      KUNCI_LAYANAN: ${KUNCI_LAYANAN}
+      FOLDER_PROYEK: /data
+      FOLDER_MODEL: /data/model
+      FOLDER_HASIL_PENELITIAN: /data/hasil_penelitian
+      # VPS dipakai bersama situs lain: TensorFlow dibatasi 2 thread, dan server ini tidak melatih model
+      # (model dilatih di laptop peneliti lalu diunggah lewat halaman admin).
+      TF_NUM_INTRAOP_THREADS: "2"
+      TF_NUM_INTEROP_THREADS: "1"
+    volumes:
+      - ${FOLDER_DATA}:/data
+    cpus: 2.5
+    mem_limit: 6g
+
+  web:
+    build: ../laravel
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      flask:
+        condition: service_started
+    env_file: .env.laravel
+    environment:
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_DATABASE: klasifikasi_benih
+      DB_USERNAME: benih
+      DB_PASSWORD: ${DB_PASSWORD}
+      FLASK_URL: http://flask:5000
+      FLASK_KUNCI_LAYANAN: ${KUNCI_LAYANAN}
+    volumes:
+      - ${FOLDER_STORAGE}:/var/www/html/storage
+    ports:
+      - "127.0.0.1:8091:80"
+    cpus: 1
+    mem_limit: 1g
+
+volumes:
+  mysql:
