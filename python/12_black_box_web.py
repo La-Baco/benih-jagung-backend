@@ -111,14 +111,21 @@ def main():
         kolom = driver.find_element(By.ID, "password")
         kolom.send_keys("rahasia123")
         mata = driver.find_element(By.CSS_SELECTOR, "[data-mata=password]")
+        # Selain tipe kolom, dihitung ikon mata yang benar-benar tampil: harus tepat satu di setiap langkah.
+        ikon_tampil = ("return [...document.querySelectorAll('[data-mata=password] svg')]"
+                       ".filter(s => getComputedStyle(s).display !== 'none').length")
         jenis = [kolom.get_attribute("type")]
+        ikon = [driver.execute_script(ikon_tampil)]
         mata.click()
         jenis.append(kolom.get_attribute("type"))
+        ikon.append(driver.execute_script(ikon_tampil))
         driver.save_screenshot(str(FOLDER / "14a_mata_terbuka.png"))
         mata.click()
         jenis.append(kolom.get_attribute("type"))
+        ikon.append(driver.execute_script(ikon_tampil))
         catat(14, "Login", "Menekan ikon mata pada kolom kata sandi", "Kata sandi tampil dan tersembunyi bergantian",
-              "tipe kolom " + " -> ".join(jenis), jenis == ["password", "text", "password"], "14b_mata_tertutup.png")
+              "tipe kolom " + " -> ".join(jenis) + "; ikon tampil " + " -> ".join(map(str, ikon)),
+              jenis == ["password", "text", "password"] and ikon == [1, 1, 1], "14b_mata_tertutup.png")
 
         # 15. Hak akses: akun petani di website
         login(PETANI, SANDI)
