@@ -797,6 +797,17 @@ code {
     padding-right: 52px;
 }
 
+/* Edge menambahkan ikon mata bawaan di kolom sandi; disembunyikan agar tidak dobel dengan .tombol-mata. */
+.kolom-sandi input::-ms-reveal,
+.kolom-sandi input::-ms-clear {
+    display: none;
+}
+
+/* Atribut hidden tidak berlaku untuk <svg> di aturan bawaan browser, jadi ditegaskan di sini. */
+.tombol-mata svg[hidden] {
+    display: none;
+}
+
 .tombol-mata {
     position: absolute;
     top: 0;
