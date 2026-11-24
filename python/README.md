@@ -2,13 +2,13 @@
 
 Folder ini berisi dua hal:
 
-1. **Skrip penelitian** `01` sampai `10`, yang dijalankan di laptop peneliti untuk menghasilkan model dan bukti BAB IV.
+1. **Skrip penelitian** `01` sampai `16`, yang dijalankan di laptop peneliti untuk menghasilkan model dan bukti BAB IV.
 2. **Layanan prediksi Flask** (`app.py`, `admin.py`), yang dipanggil aplikasi Laravel. Layanan ini hanya menjalankan prediksi. Pelatihan tidak pernah dijalankan di server.
 
-> **Model dilatih di perangkat pengembang.** Model penelitian S2 dilatih di laptop peneliti dengan spesifikasi berikut (dicatat oleh `01_cek_lingkungan.py`):
+> **Model dilatih di perangkat pengembang.** Model yang dipakai sistem adalah S3 (`model/model_akhir.keras`, dipilih `11_evaluasi_semua_skenario.py`). Model ini dilatih di laptop peneliti dengan spesifikasi berikut (dicatat oleh `01_cek_lingkungan.py`):
 > - Intel Core i7-1355U, RAM 15,7 GB, Windows 11
 > - TensorFlow 2.21.0, di CPU (tanpa GPU)
-> - 70 epoch dalam 17,9 menit
+> - 27 epoch dalam 5,8 menit
 >
 > Server VPS dipakai bersama layanan lain, jadi server hanya memuat model `.keras` yang sudah jadi.
 
@@ -37,6 +37,12 @@ Folder ini berisi dua hal:
 | `07_lembar_salah_prediksi.py` | Lembar citra FP/FN dan sebaran per jenis kerusakan | `bukti/05_evaluasi` |
 | `08_bandingkan_augmentasi.py` | Bandingkan run dengan dan tanpa augmentasi | `bukti/tanpa_augmentasi` |
 | `10_cek_mode_kamera.py` | Mode kamera `/deteksi` harus memberi kelas sama dengan `/predict`; saringan warna diuji | `bukti/08_mode_kamera` |
+| `11_evaluasi_semua_skenario.py` | Evaluasi S1-S4 pada data latih, validasi, dan uji; memilih model sistem dari loss uji terendah (bila selisih < 0,01, parameter lebih sedikit). Hasil saat ini: S3 | `bukti/05_evaluasi/semua_skenario` |
+| `12_black_box_web.py` | Black box website, skenario 12-21 (Selenium, Edge) | `bukti/10_black_box/web` |
+| `13_hp.py` | Alat bantu black box aplikasi Android lewat ADB | `bukti/10_black_box/android` |
+| `14_gambar_bab4.py` | Gambar dan tabel BAB IV dari hasil yang sudah ada (tanpa melatih ulang) | `bukti/05_evaluasi/semua_skenario` |
+| `15_gambar_naskah_besar.py` | Menata ulang gambar BAB IV dan lampiran supaya terbaca saat dicetak | folder gambar naskah LaTeX |
+| `16_lampiran_naskah.py` | Menyusun `lampiran.tex` naskah dari folder bukti | folder naskah LaTeX |
 
 Semua angka penting (learning rate, epoch, patience, skenario, ukuran citra, batas deteksi) hanya ada di `config.py`.
 
