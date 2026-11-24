@@ -121,6 +121,35 @@ class ApiAplikasiTest extends TestCase
         $this->assertDatabaseCount('riwayat_klasifikasi', 0);
     }
 
+    public function test_login_berulang_tidak_menghabiskan_jatah_lupa_sandi(): void
+    {
+        $this->petani();
+        for ($i = 0; $i < 6; $i++) {
+            $this->postJson('/api/login', ['email' => 'petani@benih.test', 'password' => 'salah'])->assertStatus(401);
+        }
+
+        $this->postJson('/api/lupa-sandi', ['email' => 'tidak.ada@benih.test'])->assertStatus(422);
+    }
+
+    public function test_mode_kamera_tidak_menghabiskan_jatah_klasifikasi(): void
+    {
+        Storage::fake('public');
+        Http::fake([
+            '*/deteksi' => Http::response(['status' => 'sukses', 'benih' => []]),
+            '*/predict' => Http::response(['status' => 'sukses', 'prediksi' => 'Layak', 'skor_kepercayaan' => 97.31]),
+        ]);
+        $petani = $this->petani();
+        $frame = UploadedFile::fake()->image('frame.jpg', 64, 64);
+        for ($i = 0; $i < 31; $i++) {
+            $this->actingAs($petani, 'sanctum')
+                ->post('/api/deteksi', ['frame' => $frame], ['Accept' => 'application/json'])->assertOk();
+        }
+
+        $this->actingAs($petani, 'sanctum')
+            ->post('/api/klasifikasi', ['gambar' => UploadedFile::fake()->image('benih.jpg')], ['Accept' => 'application/json'])
+            ->assertCreated();
+    }
+
     public function test_keluar_menghapus_token(): void
     {
         $this->petani();

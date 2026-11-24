@@ -16,9 +16,9 @@ Route::middleware('guest')->group(function () {
     Route::post('/login', [LoginController::class, 'store']);
 
     Route::get('/lupa-sandi', [LupaSandiController::class, 'create'])->name('password.request');
-    Route::post('/lupa-sandi', [LupaSandiController::class, 'store'])->middleware('throttle:6,1')->name('password.email');
+    Route::post('/lupa-sandi', [LupaSandiController::class, 'store'])->middleware('throttle:6,1,lupa-sandi-web')->name('password.email');
     Route::get('/reset-sandi/{token}', [LupaSandiController::class, 'edit'])->name('password.reset');
-    Route::post('/reset-sandi', [LupaSandiController::class, 'update'])->middleware('throttle:10,1')->name('password.update');
+    Route::post('/reset-sandi', [LupaSandiController::class, 'update'])->middleware('throttle:10,1,reset-sandi')->name('password.update');
     Route::get('/reset-sandi-selesai', [LupaSandiController::class, 'selesai'])->name('password.selesai');
 });
 
@@ -66,7 +66,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/unggahan', [UnggahanController::class, 'mulai'])->name('unggahan.mulai');
         Route::get('/unggahan/{id}', [UnggahanController::class, 'status'])->name('unggahan.status');
         Route::post('/unggahan/{id}/{indeks}', [UnggahanController::class, 'potongan'])
-            ->whereNumber('indeks')->middleware('throttle:600,1')->name('unggahan.potongan');
+            ->whereNumber('indeks')->middleware('throttle:600,1,unggahan')->name('unggahan.potongan');
         Route::delete('/unggahan/{id}', [UnggahanController::class, 'batal'])->name('unggahan.batal');
     });
 });
