@@ -1,0 +1,9 @@
+# Skrip dan konfigurasi dijalankan di Linux (Docker, VPS), jadi selalu LF walau di-checkout di Windows.
+# Tanpa ini, mulai_server.sh berbaris CRLF gagal dijalankan kontainer ("no such file or directory").
+* text=auto eol=lf
+
+*.keras binary
+*.png binary
+*.jpg binary
+*.woff2 binary
+*.ttf binary
