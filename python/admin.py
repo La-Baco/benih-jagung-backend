@@ -208,7 +208,20 @@ def hasil_penelitian():
             for b in csv.DictReader(f)
         ]
 
-    # Nama model akhir diambil dari baris pertama laporan 05_evaluasi.py.
+    # Model sistem dipilih 11_evaluasi_semua_skenario.py (loss uji terendah, saat ini S3). Bila hasil
+    # skrip itu belum ada, dipakai model akhir 05_evaluasi.py (loss validasi terendah).
+    folder_semua = folder / "05_evaluasi" / "semua_skenario"
+    if (folder_semua / "hasil_semua_skenario.txt").exists():
+        teks = (folder_semua / "hasil_semua_skenario.txt").read_text(encoding="utf-8")
+        terpilih = re.search(r"Model untuk sistem\s*:\s*(S\d)", teks).group(1).lower()
+        with open(folder_semua / "evaluasi_semua_skenario.csv", encoding="utf-8") as f:
+            b = next(b for b in csv.DictReader(f) if b["skenario"].lower() == terpilih)
+        tp, fn, fp, tn = (int(b[k]) for k in ("uji_tp", "uji_fn", "uji_fp", "uji_tn"))
+        uji = {"jumlah": tp + fn + fp + tn, "tp": tp, "fn": fn, "fp": fp, "tn": tn,
+               "akurasi": float(b["akurasi_uji"]), "presisi": float(b["presisi_uji"]),
+               "recall": float(b["recall_uji"]), "f1": float(b["f1_uji"])}
+        return hasil_dengan_perangkat(folder, skenario, terpilih, uji)
+
     teks = (folder / "05_evaluasi" / "hasil_evaluasi.txt").read_text(encoding="utf-8")
     terpilih = re.search(r"Model akhir\s*:\s*(S\d)", teks).group(1).lower()
 
@@ -228,6 +241,10 @@ def hasil_penelitian():
     uji = {"jumlah": tp + fn + fp + tn, "tp": tp, "fn": fn, "fp": fp, "tn": tn,
            "akurasi": round((tp + tn) / (tp + fn + fp + tn), 4), "presisi": round(presisi, 4),
            "recall": round(recall, 4), "f1": round(2 * presisi * recall / (presisi + recall), 4)}
+    return hasil_dengan_perangkat(folder, skenario, terpilih, uji)
+
+
+def hasil_dengan_perangkat(folder, skenario, terpilih, uji):
     # Perangkat pelatihan diambil dari catatan 01_cek_lingkungan.py, bukan ditulis ulang di sini.
     perangkat = {}
     path_lingkungan = folder / "01_lingkungan" / "versi_perangkat_lunak_windows.txt"
