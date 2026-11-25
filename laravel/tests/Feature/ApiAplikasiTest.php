@@ -68,6 +68,33 @@ class ApiAplikasiTest extends TestCase
         $this->assertSame(1, RiwayatKlasifikasi::where('user_id', $petani->id)->count());
     }
 
+    public function test_objek_bukan_jagung_ketan_putih_disimpan_dengan_bounding_box(): void
+    {
+        Storage::fake('public');
+        Http::fake(['*/predict' => Http::response([
+            'status' => 'sukses', 'prediksi' => 'Bukan Jagung Ketan Putih', 'skor_kepercayaan' => 99.12,
+            'jenis' => 'Bukan Jagung Ketan Putih',
+            'objek' => [['x' => 0.31, 'y' => 0.3, 'w' => 0.35, 'h' => 0.33, 'peluang_ketan' => 0.0088,
+                'jenis' => 'Bukan Jagung Ketan Putih', 'skor_jenis' => 99.12, 'peluang_layak' => null,
+                'prediksi' => 'Bukan Jagung Ketan Putih', 'skor_kepercayaan' => 99.12]],
+        ])]);
+        $petani = $this->petani();
+
+        $this->actingAs($petani, 'sanctum')
+            ->post('/api/klasifikasi', ['gambar' => UploadedFile::fake()->image('kerikil.jpg', 640, 640)], ['Accept' => 'application/json'])
+            ->assertCreated()
+            ->assertJsonPath('data.hasil_prediksi', 'Bukan Jagung Ketan Putih')
+            ->assertJsonPath('data.objek.0.x', 0.31)
+            ->assertJsonPath('data.objek.0.prediksi', 'Bukan Jagung Ketan Putih');
+
+        $riwayat = RiwayatKlasifikasi::where('user_id', $petani->id)->sole();
+        $this->assertSame('hasil-bukan', $riwayat->kelasCss());
+        // Kolom yang tidak dibutuhkan tampilan (peluang mentah) tidak ikut disimpan.
+        $this->assertArrayNotHasKey('peluang_ketan', $riwayat->objek[0]);
+
+        $this->actingAs($petani)->get('/riwayat')->assertOk()->assertSee('kotak-bukan', false);
+    }
+
     public function test_benih_tidak_terdeteksi_meneruskan_pesan_flask(): void
     {
         Storage::fake('public');

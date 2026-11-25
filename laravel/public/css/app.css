@@ -22,6 +22,7 @@
     --hijau-muda: #eef1e8;
     --hasil-layak: #1f7a33;
     --hasil-tidak-layak: #b3261e;
+    --hasil-bukan: #8a4b00;
     --nonaktif: #6b7362;
 }
 
@@ -244,6 +245,66 @@ td img {
     font-weight: 700;
 }
 
+.hasil-bukan {
+    color: var(--hasil-bukan);
+    font-weight: 700;
+}
+
+/* Foto dengan bounding box objek. Gambar memakai rasio aslinya supaya posisi kotak (persen) tepat. */
+.bingkai-objek {
+    position: relative;
+    display: block;
+    line-height: 0;
+    background: #222;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.bingkai-objek img,
+td .bingkai-objek img {
+    display: block;
+    width: 100%;
+    height: auto;
+    object-fit: initial;
+    border-radius: 0;
+}
+
+.bingkai-kecil {
+    width: 56px;
+    border-radius: 4px;
+}
+
+.kotak-objek {
+    position: absolute;
+    border: 3px solid;
+    border-radius: 2px;
+}
+
+.bingkai-kecil .kotak-objek {
+    border-width: 2px;
+}
+
+.kotak-layak { border-color: #3fbf5f; }
+.kotak-tidak-layak { border-color: #ff5a4f; }
+.kotak-bukan { border-color: #ffb020; }
+
+/* Label di dalam kotak, supaya tidak terpotong saat objek berada di tepi atas foto. */
+.label-objek {
+    position: absolute;
+    left: 0;
+    top: 0;
+    padding: 2px 5px;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.2;
+    white-space: nowrap;
+    color: #111;
+}
+
+.kotak-layak .label-objek { background: #3fbf5f; }
+.kotak-tidak-layak .label-objek { background: #ff5a4f; }
+.kotak-bukan .label-objek { background: #ffb020; }
+
 label {
     display: block;
     margin-bottom: 6px;
@@ -401,8 +462,6 @@ select {
     display: block;
     width: 100%;
     max-width: 280px;
-    aspect-ratio: 1;
-    object-fit: cover;
     margin-bottom: 14px;
     border-radius: 6px;
     background: #222;

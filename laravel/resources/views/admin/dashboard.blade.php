@@ -20,6 +20,10 @@
             <div class="label">Hasil tidak layak</div>
             <div class="angka">{{ $jumlahTidakLayak }}</div>
         </div>
+        <div class="kotak">
+            <div class="label">Bukan jagung ketan putih</div>
+            <div class="angka">{{ $jumlahBukan }}</div>
+        </div>
     </div>
 
     <div class="baris-tombol">

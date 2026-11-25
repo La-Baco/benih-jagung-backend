@@ -33,6 +33,21 @@ KELAS_ASLI = {
 # Urutan ditetapkan eksplisit agar tidak_layak = 0 dan layak = 1 (Subbab 3.7)
 NAMA_KELAS = ["tidak_layak", "layak"]
 
+# Tahap penyaring objek (skrip 17-20): sebelum dinilai kelayakannya, objek diperiksa dulu
+# apakah jagung ketan putih. Urutan kelas: bukan = 0, jagung ketan putih = 1.
+NAMA_KELAS_PENYARING = ["bukan_jagung_ketan_putih", "jagung_ketan_putih"]
+FILE_MODEL_PENYARING = FOLDER_MODEL_PENELITIAN / "model_penyaring.keras"
+SKENARIO_PENYARING = "s3"  # arsitektur dan batch sama dengan model sistem (4 blok, batch 16)
+# Objek dengan max(w, h) lebih kecil dari ini (pada lebar 3000 px) dianggap kotoran/debu.
+SISI_MIN_OBJEK = 150
+# Median jarak warna (Lab) objek ke alas minimal segini. Otsu selalu membelah citra, jadi
+# pada alas kosong serat dan bayangan ikut menjadi "objek" (jarak <= 29 pada 5 foto alas
+# kosong). Benih dataset berjarak >= 75 (200 citra), kerikil gelap di alas penelitian > 50.
+JARAK_WARNA_MIN_OBJEK = 35
+# Kernel closing (pada lebar 3000 px) untuk menyatukan potongan satu objek.
+KERNEL_PENUTUP_OBJEK = 41
+JUMLAH_MAKS_OBJEK = 10
+
 UKURAN_CITRA = 224
 LEBAR_ACUAN = 3000
 BATAS_TEPI = 50

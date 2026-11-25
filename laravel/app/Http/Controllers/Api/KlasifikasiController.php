@@ -77,6 +77,7 @@ class KlasifikasiController extends Controller
             'id' => $riwayat->id,
             'hasil_prediksi' => $riwayat->hasil_prediksi,
             'skor_kepercayaan' => (float) $riwayat->skor_kepercayaan,
+            'objek' => $riwayat->objek ?? [],
             'waktu' => $riwayat->created_at->toIso8601String(),
             'url_gambar' => route('api.riwayat.gambar', $riwayat),
         ];

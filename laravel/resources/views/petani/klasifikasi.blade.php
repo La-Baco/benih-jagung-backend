@@ -27,7 +27,7 @@
             <div class="petunjuk">
                 <strong>Petunjuk:</strong>
                 <ol>
-                    <li>Satu butir benih di atas alas hitam.</li>
+                    <li>Satu butir benih di atas alas polos (warnanya berbeda dari benih).</li>
                     <li>Foto tegak lurus dari atas.</li>
                     <li>Tanpa lampu kilat.</li>
                 </ol>
@@ -38,8 +38,8 @@
             <h2>Hasil klasifikasi</h2>
 
             @if ($hasil)
-                <img src="{{ asset('storage/' . $hasil->path_gambar) }}" alt="Citra benih" class="gambar-hasil">
-                <p class="kelas-hasil {{ $hasil->hasil_prediksi === 'Layak' ? 'hasil-layak' : 'hasil-tidak-layak' }}">
+                @include('riwayat._gambar', ['item' => $hasil, 'kecil' => false])
+                <p class="kelas-hasil {{ $hasil->kelasCss() }}">
                     {{ $hasil->hasil_prediksi }}
                 </p>
                 <div>Skor kepercayaan: {{ number_format($hasil->skor_kepercayaan, 2, ',', '.') }}%</div>
@@ -48,6 +48,7 @@
                 <p class="catatan">Hasil akan tampil di sini setelah citra diklasifikasikan.</p>
             @endif
 
+            <p class="catatan">Sebelum dinilai kelayakannya, sistem memeriksa dulu apakah objek di foto adalah jagung ketan putih. Kerikil atau benda lain ditandai "Bukan Jagung Ketan Putih".</p>
             <p class="catatan">Hasil didasarkan pada tampilan fisik benih dan tidak menggantikan uji daya berkecambah.</p>
             <p class="catatan">Model dilatih di perangkat pengembang (laptop peneliti); server hanya menjalankan prediksi.</p>
         </div>

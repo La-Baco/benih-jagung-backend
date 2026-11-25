@@ -26,8 +26,8 @@
                         @if ($admin)
                             <td>{{ $item->user->nama }}</td>
                         @endif
-                        <td><img src="{{ asset('storage/' . $item->path_gambar) }}" alt="Citra benih"></td>
-                        <td class="{{ $item->hasil_prediksi === 'Layak' ? 'hasil-layak' : 'hasil-tidak-layak' }}">{{ $item->hasil_prediksi }}</td>
+                        <td>@include('riwayat._gambar', ['item' => $item, 'kecil' => true])</td>
+                        <td class="{{ $item->kelasCss() }}">{{ $item->hasil_prediksi }}</td>
                         <td>{{ number_format($item->skor_kepercayaan, 2, ',', '.') }}%</td>
                     </tr>
                 @empty

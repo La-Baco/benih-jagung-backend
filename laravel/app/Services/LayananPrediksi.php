@@ -36,6 +36,21 @@ class LayananPrediksi
             'path_gambar' => $berkas->store('riwayat', 'public'),
             'hasil_prediksi' => $respon->json('prediksi'),
             'skor_kepercayaan' => $respon->json('skor_kepercayaan'),
+            'objek' => self::ringkasObjek($respon->json('objek') ?? []),
         ]);
+    }
+
+    // Hanya kolom yang dibutuhkan tampilan yang disimpan, supaya isi kolom objek tetap kecil.
+    public static function ringkasObjek(array $objek): array
+    {
+        return array_map(fn ($o) => [
+            'x' => (float) ($o['x'] ?? 0),
+            'y' => (float) ($o['y'] ?? 0),
+            'w' => (float) ($o['w'] ?? 0),
+            'h' => (float) ($o['h'] ?? 0),
+            'jenis' => (string) ($o['jenis'] ?? ''),
+            'prediksi' => (string) ($o['prediksi'] ?? ''),
+            'skor_kepercayaan' => (float) ($o['skor_kepercayaan'] ?? 0),
+        ], array_slice($objek, 0, 10));
     }
 }

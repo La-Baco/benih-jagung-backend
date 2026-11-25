@@ -12,13 +12,12 @@ Menjalankan:
     python app.py
 """
 
-import math
-
 import cv2
 import numpy as np
 from flask import Flask, jsonify, request
 
 import config
+import deteksi_objek
 import model_aktif
 import prapemrosesan as pp
 from admin import admin
@@ -57,7 +56,8 @@ def berkas_terlalu_besar(_):
 
 @app.get("/")
 def cek_layanan():
-    return jsonify(status="aktif", model=model_aktif.keterangan(), pelatihan=KETERANGAN_PELATIHAN)
+    return jsonify(status="aktif", model=model_aktif.keterangan(), pelatihan=KETERANGAN_PELATIHAN,
+                   penyaring="Custom CNN jagung ketan putih / bukan (model/model_penyaring.keras)")
 
 
 @app.post("/predict")
@@ -77,23 +77,27 @@ def predict():
         return gagal("Berkas tidak dapat dibaca sebagai citra.", 400)
 
     model, sisi = model_aktif.ambil()
-    potongan = pp.proses_citra(citra, sisi)
-    if potongan is None:
-        return gagal("Benih tidak terdeteksi. Pastikan satu butir benih berada di tengah alas hitam.", 422)
+    citra = pp.samakan_lebar(citra)
+    daftar_objek = deteksi_objek.analisis(citra, model_aktif.ambil_penyaring(), model, sisi)
+    if not daftar_objek:
+        return gagal("Objek tidak terdeteksi. Letakkan satu butir benih di tengah alas polos, "
+                     "lalu foto dari atas.", 422)
 
-    masukan = pp.ke_masukan_model(potongan)[np.newaxis, ...]
-    peluang_layak = float(model(masukan, training=False).numpy()[0][0])
+    # Hasil utama adalah objek terbesar, sesuai satu benih per foto (Batasan Masalah).
+    # Skor kepercayaan memakai Persamaan 3-2 dan 3-3, dipotong ke bawah 2 desimal supaya
+    # peluang 0,99997 tidak tampil sebagai 100% (kesan pasti benar).
+    utama = daftar_objek[0]
+    tinggi, lebar = citra.shape[:2]
+    return jsonify(status="sukses", prediksi=utama["prediksi"], skor_kepercayaan=utama["skor_kepercayaan"],
+                   jenis=utama["jenis"], objek=[kotak_relatif(o, lebar, tinggi) for o in daftar_objek])
 
-    # Persamaan 3-2 dan 3-3
-    if peluang_layak >= 0.5:
-        prediksi = "Layak"
-        skor = peluang_layak * 100
-    else:
-        prediksi = "Tidak Layak"
-        skor = (1 - peluang_layak) * 100
 
-    # Dipotong ke bawah, bukan dibulatkan, supaya peluang 0,99997 tidak tampil sebagai 100% (kesan pasti benar).
-    return jsonify(status="sukses", prediksi=prediksi, skor_kepercayaan=math.floor(round(skor * 100, 6)) / 100)
+def kotak_relatif(objek, lebar, tinggi):
+    """Koordinat dibagi ukuran citra, jadi aplikasi bisa menggambar kotak di layar ukuran apa pun."""
+    hasil = dict(objek)
+    hasil.update(x=round(objek["x"] / lebar, 4), y=round(objek["y"] / tinggi, 4),
+                 w=round(objek["w"] / lebar, 4), h=round(objek["h"] / tinggi, 4))
+    return hasil
 
 
 def samakan_skala_frame(citra):
@@ -115,11 +119,12 @@ def samakan_skala_frame(citra):
 
 @app.post("/deteksi")
 def deteksi():
-    """Mode kamera aplikasi HP: beberapa benih dalam satu frame.
+    """Mode kamera aplikasi HP: beberapa objek dalam satu frame.
 
     Ini perluasan di luar ruang lingkup skripsi (Batasan no. 4 hanya satu benih
-    per citra) dan akurasinya tidak dievaluasi di BAB IV. Model dan prapemrosesan
-    tetap sama; yang ditambahkan hanya pencarian semua kontur benih.
+    per citra) dan akurasinya tidak dievaluasi di BAB IV. Alurnya sama dengan
+    /predict (deteksi objek, penyaring, kelayakan); ukuran objek dibatasi pada
+    rentang ukuran benih karena jarak kamera ke alas kurang lebih tetap.
     """
     berkas = request.files.get("file")
     if berkas is None:
@@ -131,44 +136,10 @@ def deteksi():
     model, sisi = model_aktif.ambil()
     citra = samakan_skala_frame(citra)
     tinggi, lebar = citra.shape[:2]
-    _, _, biner = pp.ke_biner(citra)
-    daftar_kontur = sorted(pp.cari_semua_kontur_benih(biner), key=cv2.contourArea, reverse=True)
-    citra_hsv = cv2.cvtColor(citra, cv2.COLOR_BGR2HSV)
-    daftar_kontur = [k for k in daftar_kontur[:30] if pp.mirip_benih(citra_hsv, k)][:config.JUMLAH_MAKS_DETEKSI]
-    if not daftar_kontur:
-        return jsonify(status="sukses", lebar=lebar, tinggi=tinggi, benih=[])
-
-    # Model dilatih dengan satu benih per potongan. Bila benih lain ikut masuk ke potongan,
-    # benih itu ditutup dengan warna alas supaya potongannya menyerupai data latih.
-    # Median dihitung dari 1 tiap 8x8 piksel: hasilnya sama, tetapi 1,5 detik lebih cepat di VPS.
-    warna_alas = np.median(citra[::8, ::8][biner[::8, ::8] == 0], axis=0).astype(np.uint8)
-    topeng_semua = []
-    for k in daftar_kontur:
-        topeng = np.zeros(biner.shape, np.uint8)
-        cv2.drawContours(topeng, [k], -1, 255, cv2.FILLED)
-        topeng_semua.append(cv2.dilate(topeng, np.ones((31, 31), np.uint8)))
-
-    masukan, kotak = [], []
-    for i, k in enumerate(daftar_kontur):
-        bersih = citra.copy()
-        for j, topeng in enumerate(topeng_semua):
-            if j != i:
-                bersih[topeng > 0] = warna_alas
-        x, y, w, h = cv2.boundingRect(k)
-        masukan.append(pp.ke_masukan_model(pp.ubah_ukuran(pp.potong_persegi(bersih, (x, y, w, h), sisi))))
-        kotak.append((x, y, w, h))
-
-    peluang = model(np.stack(masukan), training=False).numpy().ravel()
-    benih = []
-    for (x, y, w, h), p in zip(kotak, peluang):
-        benih.append({
-            # Koordinat dibagi ukuran citra, jadi aplikasi bisa menggambar kotak di layar ukuran apa pun.
-            "x": round(x / lebar, 4), "y": round(y / tinggi, 4),
-            "w": round(w / lebar, 4), "h": round(h / tinggi, 4),
-            "peluang_layak": round(float(p), 4),
-            "prediksi": "Layak" if p >= 0.5 else "Tidak Layak",
-        })
-    return jsonify(status="sukses", lebar=lebar, tinggi=tinggi, benih=benih)
+    daftar_objek = deteksi_objek.analisis(citra, model_aktif.ambil_penyaring(), model, sisi,
+                                          sisi_min=config.SISI_MIN_DETEKSI, sisi_maks=config.SISI_MAKS_DETEKSI)
+    return jsonify(status="sukses", lebar=lebar, tinggi=tinggi,
+                   benih=[kotak_relatif(o, lebar, tinggi) for o in daftar_objek])
 
 
 if __name__ == "__main__":

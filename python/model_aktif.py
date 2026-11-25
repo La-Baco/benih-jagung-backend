@@ -15,6 +15,9 @@ import config
 _kunci = threading.Lock()
 _model = None
 _sisi = None
+# Model penyaring (jagung ketan putih / bukan) tidak bisa diganti dari halaman admin,
+# jadi cukup dimuat sekali dari folder model penelitian.
+_penyaring = keras.models.load_model(str(config.FILE_MODEL_PENYARING))
 
 
 def muat():
@@ -29,6 +32,10 @@ def muat():
 def ambil():
     with _kunci:
         return _model, _sisi
+
+
+def ambil_penyaring():
+    return _penyaring
 
 
 def keterangan():

@@ -16,6 +16,10 @@
             <div class="label">Hasil tidak layak</div>
             <div class="angka">{{ $jumlahTidakLayak }}</div>
         </div>
+        <div class="kotak">
+            <div class="label">Bukan jagung ketan putih</div>
+            <div class="angka">{{ $jumlahBukan }}</div>
+        </div>
     </div>
 
     <div class="kotak">
@@ -34,8 +38,8 @@
                 @forelse ($terakhir as $item)
                     <tr>
                         <td>{{ $item->created_at->format('d/m/Y H:i') }}</td>
-                        <td><img src="{{ asset('storage/' . $item->path_gambar) }}" alt="Citra benih"></td>
-                        <td class="{{ $item->hasil_prediksi === 'Layak' ? 'hasil-layak' : 'hasil-tidak-layak' }}">{{ $item->hasil_prediksi }}</td>
+                        <td>@include('riwayat._gambar', ['item' => $item, 'kecil' => true])</td>
+                        <td class="{{ $item->kelasCss() }}">{{ $item->hasil_prediksi }}</td>
                         <td>{{ number_format($item->skor_kepercayaan, 2, ',', '.') }}%</td>
                     </tr>
                 @empty
