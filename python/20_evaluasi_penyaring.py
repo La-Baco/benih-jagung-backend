@@ -11,6 +11,8 @@ Bagian D. Alur lengkap pada foto susunan di atas alas penelitian: benih uji diga
           Hasilnya disimpan sebagai gambar dengan bounding box. Foto ini disusun dari foto
           penelitian: benih ditutup tambalan alas dari sudut foto yang sama (tambalan ini kadang
           tampak sebagai persegi sedikit lebih gelap), lalu stiker objek uji ditempel di atasnya.
+Bagian E. Alur lengkap pada foto uji lapangan (foto nyata pengguna di luar protokol penelitian:
+          kain hitam, cahaya langsung, difoto dari jauh, kerikil dan benih dalam satu foto).
 
     python 20_evaluasi_penyaring.py
 """
@@ -233,6 +235,44 @@ def bagian_d(penyaring, kelayakan, sisi, daftar):
     return ringkas_pengganti, pengganti, ringkas_campuran, campuran
 
 
+def bagian_e(penyaring, kelayakan, sisi):
+    """Foto uji lapangan (dataset_objek/foto_uji_lapangan): foto nyata di luar protokol penelitian.
+
+    Setiap objek berlabel dicocokkan dengan kotak terdeteksi yang pusatnya paling dekat
+    (paling jauh 5 % lebar foto). Yang dinilai hanya jenis objek, karena kelayakan benih di
+    foto ini belum dilabeli.
+    """
+    folder = config.FOLDER_PROYEK / "dataset_objek" / "foto_uji_lapangan"
+    if not (folder / "label.csv").exists():
+        return None, []
+    with open(folder / "label.csv", encoding="utf-8") as f:
+        label = list(csv.DictReader(f))
+    folder_contoh = FOLDER_BUKTI / "contoh_bounding_box"
+    folder_contoh.mkdir(parents=True, exist_ok=True)
+    baris = []
+    for berkas in sorted({b["berkas"] for b in label}):
+        citra = pp.samakan_lebar(cv2.imread(str(folder / berkas)))
+        tinggi, lebar = citra.shape[:2]
+        objek = do.analisis(citra, penyaring, kelayakan, sisi)
+        for b in (b for b in label if b["berkas"] == berkas):
+            px, py = float(b["pusat_x"]) * lebar, float(b["pusat_y"]) * tinggi
+            jarak = [np.hypot(o["x"] + o["w"] / 2 - px, o["y"] + o["h"] / 2 - py) for o in objek]
+            o = objek[int(np.argmin(jarak))] if jarak and min(jarak) <= 0.05 * lebar else None
+            benar = None if o is None else (o["jenis"] == do.KETAN) == (b["jenis"] == config.NAMA_KELAS_PENYARING[1])
+            baris.append({"berkas": berkas, "label_jenis": b["jenis"], "keterangan": b["keterangan"],
+                          "terdeteksi": o is not None, "prediksi": o["prediksi"] if o else "tidak terdeteksi",
+                          "peluang_ketan": o["peluang_ketan"] if o else None, "jenis_benar": benar})
+        cv2.imwrite(str(folder_contoh / f"lapangan_{berkas}"),
+                    cv2.resize(do.gambar_kotak(citra, objek), (1000, round(1000 * tinggi / lebar)),
+                               interpolation=cv2.INTER_AREA), [cv2.IMWRITE_JPEG_QUALITY, 90])
+    ringkas = {}
+    for kelas in config.NAMA_KELAS_PENYARING:
+        bagian = [b for b in baris if b["label_jenis"] == kelas]
+        ringkas[kelas] = {"jumlah_objek": len(bagian), "terdeteksi": sum(b["terdeteksi"] for b in bagian),
+                          "jenis_benar": sum(bool(b["jenis_benar"]) for b in bagian)}
+    return ringkas, baris
+
+
 def tulis_csv(path, baris):
     if not baris:
         return
@@ -265,9 +305,14 @@ def main():
     print("D1.", json.dumps(ringkas_pengganti))
     print("D2.", json.dumps(ringkas_campuran))
 
+    ringkas_e, baris_e = bagian_e(penyaring, kelayakan, sisi)
+    tulis_csv(FOLDER_BUKTI / "alur_lengkap_foto_uji_lapangan.csv", baris_e)
+    print("E.", json.dumps(ringkas_e))
+
     hasil = {"A_penyaring_data_uji": metrik, "B_kategori_belum_pernah_dilatih": kategori_baru,
              "C_alur_lengkap_foto_uji_penelitian": ringkas_c,
-             "D1_benih_diganti_objek_lain": ringkas_pengganti, "D2_benih_dan_objek_lain": ringkas_campuran}
+             "D1_benih_diganti_objek_lain": ringkas_pengganti, "D2_benih_dan_objek_lain": ringkas_campuran,
+             "E_foto_uji_lapangan": ringkas_e}
     (FOLDER_BUKTI / "hasil_evaluasi.json").write_text(json.dumps(hasil, indent=2, ensure_ascii=False), encoding="utf-8")
 
 

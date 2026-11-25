@@ -38,7 +38,10 @@ FOLDER_LATAR = FOLDER_OBJEK / "latar_peneliti"
 SUMBER = {
     "batu":        ("udayl/rocks (rock-classification.zip, igneous-metamorphic-sedimentary-rocks-and-minerals.zip)",
                     "MIT", 400),
-    "jagung_lain": ("Project-AgML/EfficientMaize_classification (raw)", "CC BY 4.0", 150),
+    # Hanya biji kuning/oranye (lihat jagung_kuning). Biji jagung putih di dataset ini tidak
+    # dipakai: secara visual tidak bisa dibedakan dari jagung ketan putih, dan versi pertama
+    # yang memakainya sebagai "bukan" membuat benih ketan asli ikut ditolak.
+    "jagung_lain": ("Project-AgML/EfficientMaize_classification (raw), hanya biji kuning/oranye", "CC BY 4.0", 150),
     "kedelai":     ("Project-AgML/soybean_variety_classification (shard 0)", "CC BY 4.0", 100),
     "padi":        ("Project-AgML/rice_grain_variety_classification (raw)", "CC BY 4.0", 130),
     "gandum":      ("Project-AgML/wheat_seed_variety_classification", "CC BY 4.0", 90),
@@ -219,6 +222,19 @@ def daftar_almond():
                 yield f"almond/{path.relative_to(FOLDER_SUMBER / 'almond').as_posix()}", kecilkan(citra, 800)
 
 
+# Median saturasi (HSV OpenCV) biji yang dianggap kuning/oranye. Benih ketan di dataset
+# penelitian bersaturasi median 48-125 (persentil 5-95), biji jagung kuning EfficientMaize >= 130.
+SATURASI_MIN_JAGUNG_KUNING = 130
+
+
+def jagung_kuning(stiker):
+    piksel = cv2.cvtColor(stiker[..., :3], cv2.COLOR_BGR2HSV)[stiker[..., 3] > 127]
+    return len(piksel) > 0 and np.median(piksel[:, 1]) >= SATURASI_MIN_JAGUNG_KUNING
+
+
+SYARAT_KATEGORI = {"jagung_lain": jagung_kuning}
+
+
 def kumpulkan(kategori, sumber, maks, rng, satu_per_foto=True, peluang=1.0):
     """Ambil stiker dari foto yang lolos syarat, lalu pilih acak sebanyak `maks`.
 
@@ -231,7 +247,7 @@ def kumpulkan(kategori, sumber, maks, rng, satu_per_foto=True, peluang=1.0):
             continue
         if satu_per_foto:
             stiker = satu_objek(citra)
-            if stiker is not None:
+            if stiker is not None and SYARAT_KATEGORI.get(kategori, lambda _: True)(stiker):
                 kandidat.append((asal, stiker))
         else:
             for j, stiker in enumerate(banyak_objek(citra, 3)):
@@ -293,7 +309,7 @@ def main():
     # (pembaca, satu objek per foto, peluang foto diperiksa)
     pembaca = {
         "batu": (daftar_foto_batu(), True, 0.5),
-        "jagung_lain": (daftar_parquet("jagung_lain"), True, 0.15),
+        "jagung_lain": (daftar_parquet("jagung_lain"), True, 1.0),
         "kedelai": (daftar_parquet("kedelai"), True, 1.0),
         "padi": (daftar_parquet("padi"), True, 0.1),
         "gandum": (daftar_parquet("gandum"), True, 1.0),

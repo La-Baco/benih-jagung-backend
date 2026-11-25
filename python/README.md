@@ -68,14 +68,6 @@ Semua angka penting (learning rate, epoch, patience, skenario, ukuran citra, bat
 | `GET /` | Cek layanan | `status`, model aktif, keterangan bahwa model dilatih di perangkat pengembang |
 | `POST /predict` (form `file`) | Klasifikasi satu foto (Tabel 3.13). Hasil utama dari objek terbesar; `prediksi` bisa `Layak`, `Tidak Layak`, atau `Bukan Jagung Ketan Putih` | `{"status":"sukses","prediksi":"Layak","skor_kepercayaan":97.31,"jenis":"Jagung Ketan Putih","objek":[...]}` |
 | `POST /deteksi` (form `file`) | Mode kamera: beberapa objek dalam satu frame (**mode percobaan**, di luar Batasan no. 4) | daftar `benih`, isinya sama dengan `objek` di `/predict` |
-
-Setiap isi `objek` berisi `x, y, w, h` (0-1 terhadap ukuran foto), `jenis`, `peluang_ketan`, `skor_jenis`, `peluang_layak` (kosong bila bukan jagung ketan putih), `prediksi`, dan `skor_kepercayaan`.
-
-### Alur satu foto
-
-1. **Deteksi objek (OpenCV).** Warna alas ditaksir dari tepi foto, jarak warna tiap piksel ke alas di-threshold dengan Otsu, lalu dibersihkan dengan opening. Setiap kontur yang tidak menyentuh tepi foto menjadi satu objek, dan `cv2.boundingRect` memberi bounding box-nya. Syaratnya alas polos; pada alas bermotif, kontur bisa gagal.
-2. **Penyaring (Custom CNN, `model/model_penyaring.keras`).** Dua kelas: jagung ketan putih (1) dan bukan (0). Arsitektur dan pengaturan pelatihannya sama dengan S3. Objek dengan peluang < 0,5 dilaporkan `Bukan Jagung Ketan Putih` dan tidak dinilai kelayakannya. Tahap ini yang mencegah kerikil dinilai `Layak`.
-3. **Kelayakan (model S3).** Hanya untuk objek yang lolos tahap 2. Untuk foto satu benih di atas alas penelitian, potongannya sama dengan prapemrosesan Subbab 3.6, jadi hasil S1-S4 di BAB IV tidak berubah.
 | `GET /admin/dataset` | Jumlah citra per kelas | |
 | `GET /admin/dataset/<kelas>?halaman=n` | Daftar berkas, 24 per halaman | |
 | `GET /admin/dataset/<kelas>/<nama>/kecil` | Gambar kecil 240 px | JPEG |
@@ -86,6 +78,18 @@ Setiap isi `objek` berisi `x, y, w, h` (0-1 terhadap ukuran foto), `jenis`, `pel
 | `POST /admin/model/unggah` (form `berkas`, `sisi_potong`, `keterangan`) | Simpan model `.keras`; diperiksa bisa dimuat, masukan 224x224x3, keluaran 1 peluang 0-1 | |
 | `POST /admin/model/aktif` (`{"sumber": id atau "penelitian"}`) | Ganti model yang dipakai | |
 | `DELETE /admin/model/<id>` | Hapus model unggahan yang tidak sedang dipakai | |
+
+Setiap isi `objek` berisi `x, y, w, h` (0-1 terhadap ukuran foto), `jenis`, `peluang_ketan`, `skor_jenis`, `peluang_layak` (kosong bila bukan jagung ketan putih), `prediksi`, dan `skor_kepercayaan`.
+
+### Alur satu foto
+
+1. **Deteksi objek (OpenCV).** Warna alas ditaksir dari tepi foto, jarak warna tiap piksel ke alas di-threshold dengan Otsu, lalu dibersihkan dengan opening. Setiap kontur yang tidak menyentuh tepi foto menjadi satu objek, dan `cv2.boundingRect` memberi bounding box-nya. Syaratnya alas polos; pada alas bermotif, kontur bisa gagal.
+2. **Penyaring (Custom CNN, `model/model_penyaring.keras`).** Dua kelas: jagung ketan putih (1) dan bukan (0). Arsitektur dan pengaturan pelatihannya sama dengan S3. Peluangnya adalah rata-rata dari potongan yang diputar 0, 90, 180, dan 270 derajat (`config.PUTARAN_PENYARING`), karena benih bisa tergeletak ke arah mana pun. Objek dengan peluang < 0,5 dilaporkan `Bukan Jagung Ketan Putih` dan tidak dinilai kelayakannya. Tahap ini yang mencegah kerikil dinilai `Layak`.
+3. **Kelayakan (model S3).** Hanya untuk objek yang lolos tahap 2. Untuk foto satu benih di atas alas penelitian, potongannya sama dengan prapemrosesan Subbab 3.6, jadi hasil S1-S4 di BAB IV tidak berubah.
+
+Ukuran potongan (`deteksi_objek.sisi_potong`): objek berukuran 504-1230 px (pada lebar 3000 px, rentang benih di dataset) dipotong dengan S tetap seperti Subbab 3.6. Objek di luar rentang itu, misalnya benih yang difoto dari jauh, dipotong dengan S yang disesuaikan agar objek tampil seukuran median benih dataset (785 px). Tanpa ini benih kecil hanya mengisi seperlima potongan dan ditolak penyaring.
+
+Batasan yang sudah diukur (`20_evaluasi_penyaring.py`, bagian E): model kelayakan S3 hanya dilatih dengan foto di atas alas penelitian. Pada alas lain (misalnya kain hitam) atau foto yang diambil jauh dari protokol, S3 cenderung memberi `Tidak Layak` untuk semua benih. Hasil kelayakan hanya bisa dipercaya untuk foto yang dibuat seperti foto penelitian.
 
 ## Menjalankan di laptop
 

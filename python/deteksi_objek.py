@@ -82,6 +82,23 @@ def _kotak_otsu(citra):
     return [cv2.boundingRect(k) for k in kontur]
 
 
+def sisi_potong(kotak, sisi):
+    """Sisi potongan persegi untuk satu objek.
+
+    Prapemrosesan Subbab 3.6 memotong persegi bersisi tetap (sisi_potong, 1330 px pada lebar
+    3000 px) karena semua foto penelitian diambil dari jarak yang sama, sehingga benih berukuran
+    504-1230 px. Bila foto diambil lebih jauh atau lebih dekat, benih jauh lebih kecil atau lebih
+    besar dari rentang itu dan tampak berbeda dari yang pernah dilihat kedua model (misalnya benih
+    260 px hanya mengisi seperlima potongan). Untuk objek di luar rentang itu, sisi potongan
+    disesuaikan agar objek tampil seukuran median benih dataset. Objek di dalam rentang tetap
+    memakai sisi tetap, jadi hasil untuk foto penelitian tidak berubah.
+    """
+    ukuran = max(kotak[2], kotak[3])
+    if config.UKURAN_BENIH_MIN <= ukuran <= config.UKURAN_BENIH_MAKS:
+        return sisi
+    return max(2, round(sisi * ukuran / config.UKURAN_BENIH_ACUAN))
+
+
 def _skor(peluang):
     """Persen kepercayaan dipotong ke bawah 2 desimal (sama seperti /predict sebelumnya)."""
     return math.floor(round(peluang * 100 * 100, 6)) / 100
@@ -117,13 +134,18 @@ def analisis(citra, model_penyaring, model_kelayakan, sisi, sisi_min=None, sisi_
             for j, topeng in enumerate(topeng_semua):
                 if j != i:
                     bersih[topeng > 0] = warna_latar
-        potongan_penyaring.append(pp.ke_masukan_model(pp.ubah_ukuran(pp.potong_persegi(bersih, kt, sisi))))
+        potongan_penyaring.append(pp.ke_masukan_model(pp.ubah_ukuran(pp.potong_persegi(bersih, kt, sisi_potong(kt, sisi)))))
         # Kotak Otsu dipakai untuk model kelayakan bila menempati tempat yang sama (lihat docstring modul).
         terbaik = max(kotak_otsu, key=lambda o: _iou(o, kt), default=None)
         kt_kelayakan = terbaik if terbaik is not None and _iou(terbaik, kt) >= 0.5 else kt
-        potongan_kelayakan.append(pp.ke_masukan_model(pp.ubah_ukuran(pp.potong_persegi(bersih, kt_kelayakan, sisi))))
+        potongan_kelayakan.append(pp.ke_masukan_model(pp.ubah_ukuran(
+            pp.potong_persegi(bersih, kt_kelayakan, sisi_potong(kt_kelayakan, sisi)))))
 
-    peluang_ketan = model_penyaring(np.stack(potongan_penyaring), training=False).numpy().ravel()
+    # Benih bisa tergeletak ke arah mana pun. Penyaring dilatih dengan augmentasi rotasi 0/90/180/270
+    # derajat, jadi keputusannya diambil dari rata-rata peluang keempat putaran (test-time augmentation).
+    putaran = config.PUTARAN_PENYARING
+    masukan = np.stack([np.rot90(p, k) for p in potongan_penyaring for k in range(putaran)])
+    peluang_ketan = model_penyaring(masukan, training=False).numpy().reshape(len(kotak), putaran).mean(axis=1)
     indeks_ketan = [i for i, p in enumerate(peluang_ketan) if p >= 0.5]
     peluang_layak = {}
     if indeks_ketan:

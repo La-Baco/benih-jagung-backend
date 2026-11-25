@@ -47,6 +47,15 @@ JARAK_WARNA_MIN_OBJEK = 35
 # Kernel closing (pada lebar 3000 px) untuk menyatukan potongan satu objek.
 KERNEL_PENUTUP_OBJEK = 41
 JUMLAH_MAKS_OBJEK = 10
+# Rentang max(w, h) benih di dataset pada lebar 3000 px (bukti/02_prapemrosesan/ukuran_benih.csv,
+# 1.000 citra): terkecil 504, median 785, terbesar 1230. Objek di luar rentang ini (foto diambil
+# lebih jauh/dekat dari protokol penelitian) dipotong agar tampil seukuran median
+# (deteksi_objek.sisi_potong). Batas bawah tidak dipakai sebagai ukuran tujuan karena benih
+# sekecil itu hanya ada di kelas tidak layak.
+PUTARAN_PENYARING = 4  # rata-rata peluang penyaring dari putaran 0, 90, 180, 270 derajat
+UKURAN_BENIH_MIN = 504
+UKURAN_BENIH_MAKS = 1230
+UKURAN_BENIH_ACUAN = 785
 
 UKURAN_CITRA = 224
 LEBAR_ACUAN = 3000

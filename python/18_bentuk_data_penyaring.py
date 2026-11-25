@@ -7,11 +7,15 @@ Dua kelas (label 1 = kelas positif, sama seperti penomoran di Subbab 3.7):
 Setiap citra dibuat persis seperti yang akan diterima model saat dipakai: potongan persegi
 yang berpusat pada objek, lalu diperkecil ke 224 x 224 (Subbab 3.6).
 
-Supaya model tidak menilai dari latar, kedua kelas muncul di latar yang sama:
-  - jagung ketan putih: potongan asli dari dataset_olah (latar alas penelitian), ditambah satu
-    salinan yang benihnya dipindah ke latar lain (warna polos atau tekstur DTD).
-  - bukan jagung ketan putih: setiap stiker ditempel dua kali, sekali di atas potongan alas
-    penelitian dan sekali di atas latar lain.
+Supaya model tidak menilai dari latar, posisi, ukuran, atau cahaya, kedua kelas dibuat dengan
+cara yang sama. Setiap objek menjadi 4 citra:
+  - jagung ketan putih: potongan asli dari dataset_olah, ditambah 3 tempelan benih yang sama
+    (topeng Otsu) di alas penelitian dan dua latar lain (warna polos atau tekstur DTD).
+  - bukan jagung ketan putih: 4 tempelan stiker (2 di alas penelitian, 2 di latar lain).
+  Setiap tempelan diputar acak 0-360 derajat, diskalakan acak, dan diberi bayangan, kilap,
+  serta variasi kualitas foto (turunkan_kualitas). Versi pertama (25-11-2026) hanya memutar
+  stiker bukan, sehingga model belajar bahwa benih yang miring/rebah, kecil, atau terkena
+  cahaya keras berarti "bukan" (benih asli di foto uji lapangan ditolak).
 
 Pembagian data:
   - jagung ketan putih mengikuti pembagian penelitian (dataset_olah/latih, validasi, uji),
@@ -46,6 +50,13 @@ FOLDER_PENYARING = config.FOLDER_PROYEK / "dataset_penyaring"
 KATEGORI_UJI_BARU = {"almond"}
 UKURAN = config.UKURAN_CITRA
 KETAN, BUKAN = config.NAMA_KELAS_PENYARING[1], config.NAMA_KELAS_PENYARING[0]
+# Salinan tempelan untuk setiap objek (nama awalan berkas, sumber latar). Bersama potongan asli
+# (ketan) atau satu tempelan tambahan di alas penelitian (bukan), tiap objek menjadi 4 citra.
+# Stiker lebih kecil dari ini (sisi terpanjang, px) hampir tidak berisi bentuk objek; setelah
+# diperbesar ke potongan 224 px hanya menjadi bercak warna buram, sama seperti benih ketan yang
+# difoto dari jauh. Stiker seperti itu tidak dipakai.
+UKURAN_STIKER_MIN = 32
+TEMPELAN = [("alas", "alas_peneliti"), ("latarlain", "lain"), ("latarlain2", "lain")]
 
 
 class Latar:
@@ -66,7 +77,7 @@ class Latar:
         return cv2.resize(latar, (UKURAN, UKURAN), interpolation=cv2.INTER_AREA)
 
     def lain(self):
-        if self.rng.random() < 0.3:
+        if self.rng.random() < 0.4:
             tekstur = self.rng.choice(self.dtd)
             tinggi, lebar = tekstur.shape[:2]
             sisi = self.rng.randint(min(tinggi, lebar) // 2, min(tinggi, lebar))
@@ -90,19 +101,32 @@ def tempel(latar, objek_bgr, alfa):
 
 
 def turunkan_kualitas(citra, rng):
-    """Variasi kualitas foto (resolusi, derau, kecerahan) untuk kedua kelas."""
-    if rng.random() < 0.3:
-        faktor = rng.uniform(0.3, 0.7)
+    """Variasi kualitas foto untuk kedua kelas.
+
+    Meniru foto yang diambil petani di luar protokol penelitian: kamera lebih jauh (resolusi
+    objek rendah), cahaya lebih terang/gelap/keras (gamma dan kontras), warna cahaya berbeda,
+    derau sensor, dan kompresi JPEG.
+    """
+    if rng.random() < 0.4:
+        faktor = rng.uniform(0.25, 0.7)
         kecil = cv2.resize(citra, None, fx=faktor, fy=faktor, interpolation=cv2.INTER_AREA)
         citra = cv2.resize(kecil, (UKURAN, UKURAN), interpolation=cv2.INTER_LINEAR)
-    hasil = citra.astype(np.float32) * rng.uniform(0.85, 1.15) + rng.uniform(-12, 12)
+    hasil = citra.astype(np.float32) / 255.0
+    hasil = hasil ** rng.uniform(0.65, 1.5)
+    hasil = (hasil - hasil.mean()) * rng.uniform(0.75, 1.4) + hasil.mean()
+    hasil = hasil * np.float32([rng.uniform(0.9, 1.1) for _ in range(3)]) * 255.0
+    hasil += rng.uniform(-15, 15)
     if rng.random() < 0.3:
         hasil += np.random.default_rng(rng.randint(0, 2**31)).normal(0, rng.uniform(2, 7), hasil.shape)
-    return np.clip(hasil, 0, 255).astype(np.uint8)
+    hasil = np.clip(hasil, 0, 255).astype(np.uint8)
+    if rng.random() < 0.3:
+        _, data = cv2.imencode(".jpg", hasil, [cv2.IMWRITE_JPEG_QUALITY, rng.randint(40, 90)])
+        hasil = cv2.imdecode(data, cv2.IMREAD_COLOR)
+    return hasil
 
 
-def ketan_di_latar_lain(path_asli, sisi, latar, rng):
-    """Pindahkan benih dari foto penelitian ke latar lain, dengan potongan yang sama seperti Subbab 3.6."""
+def stiker_ketan(path_asli):
+    """Benih dari foto penelitian sebagai stiker BGRA (topeng Otsu Subbab 3.6), sama seperti stiker bukan."""
     citra = pp.samakan_lebar(cv2.imread(str(path_asli)))
     _, _, biner = pp.ke_biner(citra)
     kotak = pp.cari_kotak_benih(biner)
@@ -112,9 +136,24 @@ def ketan_di_latar_lain(path_asli, sisi, latar, rng):
     kontur, _ = cv2.findContours(biner, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
     cocok = [k for k in kontur if cv2.boundingRect(k) == kotak]
     cv2.drawContours(topeng, cocok, -1, 255, cv2.FILLED)
-    objek = pp.ubah_ukuran(pp.potong_persegi(citra, kotak, sisi))
-    alfa = pp.ubah_ukuran(pp.potong_persegi(topeng, kotak, sisi)) / 255.0
-    return turunkan_kualitas(tempel(latar, objek, alfa), rng)
+    x, y, w, h = kotak
+    stiker = np.dstack([citra[y:y + h, x:x + w], topeng[y:y + h, x:x + w]])
+    # Diperkecil dulu supaya putar/skala berikutnya ringan; sisi terpanjang tetap > 224 px.
+    faktor = 400 / max(w, h)
+    return cv2.resize(stiker, None, fx=faktor, fy=faktor, interpolation=cv2.INTER_AREA)
+
+
+def resolusi_seperti_stiker_bukan(stiker, rng):
+    """Separuh tempelan ketan diturunkan resolusinya (sisi terpanjang 32-180 px).
+
+    Stiker bukan berasal dari foto publik beresolusi rendah sehingga tampak lebih buram daripada
+    benih dari foto 3000 px. Tanpa ini model bisa belajar "tajam = ketan", padahal foto petani
+    yang diambil dari jauh juga buram.
+    """
+    if rng.random() >= 0.5:
+        return stiker
+    faktor = rng.uniform(UKURAN_STIKER_MIN, 180) / max(stiker.shape[:2])
+    return cv2.resize(stiker, None, fx=faktor, fy=faktor, interpolation=cv2.INTER_AREA)
 
 
 def stiker_di_latar(stiker, latar, rng):
@@ -145,7 +184,25 @@ def stiker_di_latar(stiker, latar, rng):
     alfa = np.zeros((UKURAN, UKURAN), np.float32)
     objek[y:y + tinggi, x:x + lebar] = putar[..., :3]
     alfa[y:y + tinggi, x:x + lebar] = putar[..., 3] / 255.0
-    return turunkan_kualitas(tempel(latar, objek, alfa), rng)
+
+    latar = latar.astype(np.float32)
+    if rng.random() < 0.5:
+        # Bayangan lunak di bawah objek, seperti foto benda nyata di atas alas.
+        geser = np.float32([[1, 0, rng.uniform(-8, 8)], [0, 1, rng.uniform(-8, 8)]])
+        bayangan = cv2.warpAffine(alfa, geser, (UKURAN, UKURAN))
+        bayangan = cv2.GaussianBlur(bayangan, (0, 0), rng.uniform(3, 9))
+        latar *= 1 - rng.uniform(0.2, 0.6) * bayangan[..., None]
+    objek = objek.astype(np.float32)
+    if rng.random() < 0.3:
+        # Kilap dari cahaya langsung (lampu/matahari) di satu sisi objek.
+        ys, xs = np.nonzero(alfa > 0.5)
+        i = rng.randrange(len(xs))
+        yy, xx = np.mgrid[0:UKURAN, 0:UKURAN]
+        r = rng.uniform(0.08, 0.25) * max(tinggi, lebar)
+        kilap = np.exp(-((xx - xs[i]) ** 2 + (yy - ys[i]) ** 2) / (2 * r * r)).astype(np.float32)
+        objek += rng.uniform(40, 110) * (kilap * alfa)[..., None]
+    objek = np.clip(objek, 0, 255)
+    return turunkan_kualitas(tempel(np.clip(latar, 0, 255), objek, alfa), rng)
 
 
 def bagi_stiker(rng):
@@ -154,7 +211,8 @@ def bagi_stiker(rng):
     for folder in sorted((FOLDER_OBJEK / "stiker_bukan").iterdir()):
         if folder.name not in SUMBER:
             continue
-        daftar = sorted(folder.glob("*.png"))
+        daftar = [p for p in sorted(folder.glob("*.png"))
+                  if max(cv2.imread(str(p), cv2.IMREAD_UNCHANGED).shape[:2]) >= UKURAN_STIKER_MIN]
         if folder.name in KATEGORI_UJI_BARU:
             bagian["uji_kategori_baru"] += [(folder.name, p) for p in daftar]
             continue
@@ -169,7 +227,6 @@ def bagi_stiker(rng):
 
 def main():
     rng = random.Random(config.RANDOM_SEED)
-    sisi = 1330  # S dari prapemrosesan penelitian (model/prapemrosesan.json)
     latar = Latar(rng)
     if FOLDER_PENYARING.exists():
         shutil.rmtree(FOLDER_PENYARING)
@@ -191,22 +248,29 @@ def main():
                 simpan(bagian, KETAN, f"asli_{path.name}", cv2.imread(str(path)),
                        f"dataset_olah/{bagian}/{kelas_kelayakan}/{path.name}", kelas_kelayakan, "alas_penelitian")
                 path_asli = config.FOLDER_DATASET / nama_folder_asli[kelas_kelayakan] / (path.stem + ".jpg")
-                hasil = ketan_di_latar_lain(path_asli, sisi, latar.lain(), rng)
-                if hasil is not None:
-                    simpan(bagian, KETAN, f"latarlain_{path.name}", hasil,
-                           f"dataset/{nama_folder_asli[kelas_kelayakan]}/{path_asli.name}", kelas_kelayakan, "lain")
+                stiker = stiker_ketan(path_asli)
+                if stiker is None:
+                    continue
+                # Perlakuan sama persis dengan stiker bukan (putar, skala, bayangan, kilap, kualitas),
+                # supaya posisi benih yang miring/rebah, ukuran, dan cahaya tidak menjadi penanda kelas.
+                for jenis_latar, ambil in TEMPELAN:
+                    hasil = stiker_di_latar(resolusi_seperti_stiker_bukan(stiker, rng), getattr(latar, ambil)(), rng)
+                    if hasil is not None:
+                        simpan(bagian, KETAN, f"{jenis_latar}_{path.name}", hasil,
+                               f"dataset/{nama_folder_asli[kelas_kelayakan]}/{path_asli.name}", kelas_kelayakan,
+                               "alas_penelitian" if ambil == "alas_peneliti" else "lain")
         print(f"{bagian}: kelas {KETAN} selesai")
 
     # Kelas bukan jagung ketan putih
     for bagian, daftar in bagi_stiker(rng).items():
         for kategori, path in daftar:
             stiker = cv2.imread(str(path), cv2.IMREAD_UNCHANGED)
-            for jenis_latar, ambil in [("alas_penelitian", latar.alas_peneliti), ("lain", latar.lain)]:
-                hasil = stiker_di_latar(stiker, ambil(), rng)
+            for jenis_latar, ambil in [("asli", "alas_peneliti")] + TEMPELAN:
+                hasil = stiker_di_latar(stiker, getattr(latar, ambil)(), rng)
                 if hasil is not None:
-                    awalan = "alas" if jenis_latar == "alas_penelitian" else "latarlain"
-                    simpan(bagian, BUKAN, f"{awalan}_{path.stem}.png", hasil,
-                           f"stiker_bukan/{kategori}/{path.name}", kategori, jenis_latar)
+                    simpan(bagian, BUKAN, f"{jenis_latar}_{path.stem}.png", hasil,
+                           f"stiker_bukan/{kategori}/{path.name}", kategori,
+                           "alas_penelitian" if ambil == "alas_peneliti" else "lain")
         print(f"{bagian}: kelas {BUKAN} selesai")
 
     with open(FOLDER_PENYARING / "daftar_citra.csv", "w", newline="", encoding="utf-8") as f:

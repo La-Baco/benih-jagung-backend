@@ -36,11 +36,15 @@ def muat_data(bagian, batch, acak=False):
         image_size=(config.UKURAN_CITRA, config.UKURAN_CITRA),
         batch_size=None,
         shuffle=False,
-    ).cache()
+    )
+    # Disimpan di memori sebagai uint8 (nilai piksel tetap sama) supaya seluruh data latih
+    # muat di buffer acak; 5.600 citra float32 akan memakan ±3,4 GB.
+    jumlah = data.cardinality()
+    data = data.map(lambda x, y: (tf.cast(x, tf.uint8), y)).cache()
     if acak:
-        data = data.shuffle(4000, seed=config.RANDOM_SEED, reshuffle_each_iteration=True).map(latih.augmentasi)
+        data = data.shuffle(jumlah, seed=config.RANDOM_SEED, reshuffle_each_iteration=True).map(latih.augmentasi)
     normalisasi = layers.Rescaling(1.0 / 255)
-    return data.batch(batch).map(lambda x, y: (normalisasi(x), y)).prefetch(tf.data.AUTOTUNE)
+    return data.batch(batch).map(lambda x, y: (normalisasi(tf.cast(x, tf.float32)), y)).prefetch(tf.data.AUTOTUNE)
 
 
 def main():
