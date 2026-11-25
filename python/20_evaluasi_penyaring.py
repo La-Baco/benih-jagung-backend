@@ -262,7 +262,7 @@ def bagian_e(penyaring, kelayakan, sisi):
             baris.append({"berkas": berkas, "label_jenis": b["jenis"], "keterangan": b["keterangan"],
                           "terdeteksi": o is not None, "prediksi": o["prediksi"] if o else "tidak terdeteksi",
                           "peluang_ketan": o["peluang_ketan"] if o else None, "jenis_benar": benar})
-        cv2.imwrite(str(folder_contoh / f"lapangan_{berkas}"),
+        cv2.imwrite(str(folder_contoh / berkas),
                     cv2.resize(do.gambar_kotak(citra, objek), (1000, round(1000 * tinggi / lebar)),
                                interpolation=cv2.INTER_AREA), [cv2.IMWRITE_JPEG_QUALITY, 90])
     ringkas = {}
