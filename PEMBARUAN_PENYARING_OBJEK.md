@@ -57,7 +57,7 @@ Kedua kelas sengaja muncul di latar yang sama, supaya model tidak bisa membedaka
 | Layanan Flask | `/predict` dan `/deteksi` memakai alur tiga tahap. Respons menambah `jenis` dan `objek` (daftar bounding box beserta hasil per objek). Modul baru `deteksi_objek.py`, model baru `model/model_penyaring.keras` |
 | Basis data | Kolom `hasil_prediksi` menerima nilai ketiga, "Bukan Jagung Ketan Putih". Kolom baru `objek` (JSON) menyimpan bounding box. Migrasi sudah berjalan di VPS, dan riwayat lama tetap aman |
 | Website | Halaman hasil dan riwayat menggambar kotak di atas foto. Hasil "Bukan" berwarna cokelat, dan dashboard menampilkan jumlah "Bukan jagung ketan putih" |
-| Aplikasi Android | Kotak tampil di kartu hasil dan detail riwayat. Mode kamera memberi kotak oranye untuk benda selain jagung ketan putih. APK baru: `Cek-Benih-Jagung.apk` |
+| Aplikasi Android | Kotak tampil di kartu hasil dan detail riwayat. Mode kamera memberi kotak oranye untuk benda selain jagung ketan putih. APK baru bisa diunduh di https://github.com/La-Baco/benih-jagung-flutter/releases/tag/apk-2026-11-25 |
 | Skrip penelitian baru | `17_siapkan_objek_bukan_ketan.py`, `18_bentuk_data_penyaring.py`, `19_latih_penyaring.py`, `20_evaluasi_penyaring.py` |
 | Pengujian kode | Laravel 34/34, Flutter 12/12, `flutter analyze` tanpa masalah |
 
@@ -113,7 +113,7 @@ Tahap ini **belum ada di naskah**. Bagian yang perlu ditambah atau diubah:
 
 - **Durasi pelatihan penyaring.** `ringkasan.json` mencatat 149,7 menit, tetapi sekitar 94 menit di antaranya saat laptop tertidur di epoch ke-14. Waktu pelatihan sebenarnya sekitar 1 menit per epoch (±55 menit untuk 61 epoch). Jangan tulis 149,7 menit sebagai lama pelatihan tanpa penjelasan.
 - **Angka di BAB IV tidak perlu diubah.** Model S3, data uji, dan hasilnya tetap sama.
-- **APK baru.** Hapus aplikasi lama di HP lebih dulu, lalu pasang `Cek-Benih-Jagung.apk` yang baru.
+- **APK baru.** Hapus aplikasi lama di HP lebih dulu, lalu pasang `Cek-Benih-Jagung.apk` yang baru dari https://github.com/La-Baco/benih-jagung-flutter/releases/tag/apk-2026-11-25
 - **Pengaturan daya laptop.** Laptop masih diatur "tidak pernah tidur saat dicas". Kembalikan lewat Settings → System → Power bila perlu.
 - **Belum dikerjakan:** SMTP untuk e-mail lupa kata sandi belum dipasang di server.
 
