@@ -43,7 +43,7 @@ class ModelController extends Controller
             'sisi_potong' => ['required', 'integer', 'between:224,3000'],
         ], [
             'unggahan_id.required' => 'Pilih berkas model dan tunggu sampai unggahan selesai.',
-            'keterangan.required' => 'Keterangan model wajib diisi, misalnya "S3 dilatih ulang 1 Desember 2026".',
+            'keterangan.required' => 'Keterangan model wajib diisi, misalnya "S1 dilatih ulang 1 Desember 2026".',
             'sisi_potong.required' => 'Nilai S wajib diisi.',
             'sisi_potong.between' => 'Nilai S harus 224-3000 piksel.',
         ]);

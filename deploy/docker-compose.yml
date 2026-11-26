@@ -31,6 +31,9 @@ services:
       FOLDER_PROYEK: /data
       FOLDER_MODEL: /data/model
       FOLDER_HASIL_PENELITIAN: /data/hasil_penelitian
+      # Validasi jenis objek di /predict (pemeriksa_gemini.py). Kunci diisi di .env.produksi, tidak di repo.
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-flash-lite-latest}
       # VPS dipakai bersama situs lain: TensorFlow dibatasi 2 thread, dan server ini tidak melatih model
       # (model dilatih di laptop peneliti lalu diunggah lewat halaman admin).
       TF_NUM_INTRAOP_THREADS: "2"

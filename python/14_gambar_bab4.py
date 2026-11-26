@@ -6,7 +6,7 @@ Membaca:
 - dataset/jenis_kerusakan.csv
 Menulis ke bukti/05_evaluasi/semua_skenario/:
 - kurva_empat_skenario.png, confusion_matrix_empat_skenario.png
-- salah_prediksi_s3.jpg, kesalahan_per_jenis_kerusakan_s3.csv
+- salah_prediksi_<skenario sistem>.jpg, kesalahan_per_jenis_kerusakan_<skenario sistem>.csv
 """
 
 import collections
@@ -76,10 +76,12 @@ def confusion_matrix():
     plt.close(fig)
 
 
-def salah_s3():
+def salah_model_sistem():
+    """Citra uji yang salah diprediksi model sistem (config.SKENARIO_SISTEM)."""
+    sk = config.SKENARIO_SISTEM
     jenis = {b["berkas"].replace(".jpg", ".png"): b["jenis_kerusakan"]
              for b in baca_csv(config.FOLDER_DATASET / "jenis_kerusakan.csv")}
-    p = baca_csv(FOLDER / "prediksi_uji_s3.csv")
+    p = baca_csv(FOLDER / f"prediksi_uji_{sk}.csv")
     for b in p:
         b["keterangan"] = {("1", "1"): "TP", ("1", "0"): "FN", ("0", "1"): "FP", ("0", "0"): "TN"}[(b["label"], b["prediksi"])]
     salah = sorted((b for b in p if b["keterangan"] in ("FP", "FN")), key=lambda b: (b["keterangan"], b["berkas"]))
@@ -96,22 +98,22 @@ def salah_s3():
                                f"skor {b['skor_kepercayaan_persen']}%",
                                jenis.get(b["berkas"], "-").replace("_", " "))):
             cv2.putText(lembar, t, (x + 2, y + UKURAN + 17 + j * 19), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 0, 0), 1)
-    cv2.imwrite(str(FOLDER / "salah_prediksi_s3.jpg"), lembar)
+    cv2.imwrite(str(FOLDER / f"salah_prediksi_{sk}.jpg"), lembar)
 
     total, lolos = collections.Counter(), collections.Counter()
     for b in p:
         if b["label"] == "0":
             total[jenis.get(b["berkas"], "-")] += 1
             lolos[jenis.get(b["berkas"], "-")] += b["keterangan"] == "FP"
-    with open(FOLDER / "kesalahan_per_jenis_kerusakan_s3.csv", "w", newline="", encoding="utf-8") as f:
+    with open(FOLDER / f"kesalahan_per_jenis_kerusakan_{sk}.csv", "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow(["jenis_kerusakan", "jumlah_di_data_uji", "lolos_sebagai_layak_FP"])
         for j, n in total.most_common():
             w.writerow([j, n, lolos[j]])
-    print("Salah prediksi S3:")
+    print(f"Salah prediksi {sk.upper()}:")
     for b in salah:
         print(f"  {b['keterangan']} {b['berkas']:<22} skor {b['skor_kepercayaan_persen']:>6}%  {jenis.get(b['berkas'], '-')}")
-    print("\nJenis kerusakan (data uji S3): jumlah / lolos FP")
+    print(f"\nJenis kerusakan (data uji {sk.upper()}): jumlah / lolos FP")
     for j, n in total.most_common():
         print(f"  {j:<26}{n:>4}{lolos[j]:>4}")
 
@@ -138,4 +140,4 @@ if __name__ == "__main__":
     kurva()
     confusion_matrix()
     sebaran()
-    salah_s3()
+    salah_model_sistem()

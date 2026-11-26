@@ -4,7 +4,7 @@ set -e
 
 mkdir -p /data/dataset/layak_tanam /data/dataset/tidak_layak_tanam /data/model
 
-# Saat pertama kali dipasang, layanan memakai model penelitian (S2) yang ikut di dalam image.
+# Saat pertama kali dipasang, layanan memakai model penelitian (config.SKENARIO_SISTEM) yang ikut di dalam image.
 if [ ! -f /data/model/model_akhir.keras ]; then
     cp /app/model/model_akhir.keras /app/model/prapemrosesan.json /data/model/
 fi

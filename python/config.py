@@ -33,8 +33,18 @@ KELAS_ASLI = {
 # Urutan ditetapkan eksplisit agar tidak_layak = 0 dan layak = 1 (Subbab 3.7)
 NAMA_KELAS = ["tidak_layak", "layak"]
 
-# Tahap penyaring objek (skrip 17-20): sebelum dinilai kelayakannya, objek diperiksa dulu
-# apakah jagung ketan putih. Urutan kelas: bukan = 0, jagung ketan putih = 1.
+# Model sistem (model/model_akhir.keras): skenario dengan akurasi dan F1-score uji tertinggi
+# serta FP paling sedikit (11_evaluasi_semua_skenario.py).
+SKENARIO_SISTEM = "s1"
+
+# Validasi jenis objek di /predict memakai Gemini API (pemeriksa_gemini.py). Bila GEMINI_API_KEY
+# kosong, validasi dilewati dan setiap objek langsung dinilai kelayakannya.
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-flash-lite-latest").strip()
+GEMINI_BATAS_WAKTU = 20  # detik; Laravel menunggu Flask paling lama 30 detik
+
+# ARSIP (skrip 17-20, commit 409a350): penyaring Custom CNN jagung ketan putih / bukan.
+# Tidak dipakai lagi oleh layanan sejak diganti Gemini. Urutan kelas: bukan = 0, ketan = 1.
 NAMA_KELAS_PENYARING = ["bukan_jagung_ketan_putih", "jagung_ketan_putih"]
 FILE_MODEL_PENYARING = FOLDER_MODEL_PENELITIAN / "model_penyaring.keras"
 SKENARIO_PENYARING = "s3"  # arsitektur dan batch sama dengan model sistem (4 blok, batch 16)
@@ -52,7 +62,6 @@ JUMLAH_MAKS_OBJEK = 10
 # lebih jauh/dekat dari protokol penelitian) dipotong agar tampil seukuran median
 # (deteksi_objek.sisi_potong). Batas bawah tidak dipakai sebagai ukuran tujuan karena benih
 # sekecil itu hanya ada di kelas tidak layak.
-PUTARAN_PENYARING = 4  # rata-rata peluang penyaring dari putaran 0, 90, 180, 270 derajat
 UKURAN_BENIH_MIN = 504
 UKURAN_BENIH_MAKS = 1230
 UKURAN_BENIH_ACUAN = 785

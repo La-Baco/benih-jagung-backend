@@ -18,7 +18,7 @@
             <strong>Model dilatih di perangkat pengembang, bukan di server ini.</strong>
             Server VPS hanya menjalankan prediksi (layanan Flask). VPS ini dipakai bersama layanan lain, jadi pelatihan tidak dijalankan di sini.
             @if ($perangkat)
-                Model penelitian S3 dilatih di laptop peneliti: {{ $perangkat['Prosesor'] ?? '-' }}, RAM {{ str_replace('.', ',', $perangkat['RAM'] ?? '-') }},
+                Model penelitian dilatih di laptop peneliti: {{ $perangkat['Prosesor'] ?? '-' }}, RAM {{ str_replace('.', ',', $perangkat['RAM'] ?? '-') }},
                 {{ $perangkat['Sistem operasi'] ?? '-' }}, TensorFlow {{ $perangkat['TensorFlow'] ?? '-' }}, GPU {{ $perangkat['GPU'] ?? '-' }},
                 {{ $data['penelitian']['epoch'] }} epoch dalam {{ number_format($data['penelitian']['durasi_menit'], 1, ',', '.') }} menit.
             @endif
@@ -27,9 +27,9 @@
 
         <div class="kotak">
             <h2>Model yang dipakai layanan prediksi</h2>
-            <p class="model-aktif">{{ $aktif['nama'] ?? 'Model penelitian S3' }}</p>
+            <p class="model-aktif">{{ $aktif['nama'] ?? 'Model penelitian' }}</p>
             @if ($aktif['sumber'] === 'penelitian')
-                <p class="catatan">Model S3 dari skripsi (selisih latih-uji terkecil, BAB IV), dilatih di laptop peneliti.</p>
+                <p class="catatan">Model sistem dari skripsi (dipilih di BAB IV), dilatih di laptop peneliti.</p>
             @else
                 <p class="catatan">Model unggahan, dipakai sejak {{ $aktif['diaktifkan'] }}.</p>
                 <form method="POST" action="{{ route('admin.model.aktifkan') }}">
@@ -63,7 +63,7 @@
 
                     <label for="keterangan">Keterangan</label>
                     <input type="text" id="keterangan" name="keterangan" maxlength="200" required
-                           value="{{ old('keterangan') }}" placeholder="Contoh: S3 latih ulang Des 2026">
+                           value="{{ old('keterangan') }}" placeholder="Contoh: S1 latih ulang Des 2026">
 
                     <label for="sisi_potong">Nilai S (sisi potong, piksel)</label>
                     <input type="number" id="sisi_potong" name="sisi_potong" min="224" max="3000" required

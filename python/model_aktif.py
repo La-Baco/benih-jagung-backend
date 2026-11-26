@@ -15,9 +15,7 @@ import config
 _kunci = threading.Lock()
 _model = None
 _sisi = None
-# Model penyaring (jagung ketan putih / bukan) tidak bisa diganti dari halaman admin,
-# jadi cukup dimuat sekali dari folder model penelitian.
-_penyaring = keras.models.load_model(str(config.FILE_MODEL_PENYARING))
+NAMA_MODEL_PENELITIAN = f"Model penelitian {config.SKENARIO_SISTEM.upper()}"
 
 
 def muat():
@@ -34,12 +32,8 @@ def ambil():
         return _model, _sisi
 
 
-def ambil_penyaring():
-    return _penyaring
-
-
 def keterangan():
     path = config.FOLDER_MODEL / "aktif.json"
     if path.exists():
         return json.loads(path.read_text(encoding="utf-8"))
-    return {"sumber": "penelitian", "nama": "Model penelitian S3", "diaktifkan": None}
+    return {"sumber": "penelitian", "nama": NAMA_MODEL_PENELITIAN, "diaktifkan": None}

@@ -1,17 +1,18 @@
-"""Alur tiga tahap untuk satu foto: deteksi objek, penyaring jenis, lalu kelayakan.
+"""Alur untuk satu foto: deteksi objek, validasi jenis objek, lalu klasifikasi kelayakan.
 
 1. Deteksi objek (OpenCV): objek dipisah dari latar dengan ke_biner_beda_latar(), lalu
    setiap kontur yang tidak menyentuh tepi citra menjadi satu objek dengan bounding box
    dari cv2.boundingRect.
-2. Penyaring (Custom CNN, 19_latih_penyaring.py): apakah objek itu jagung ketan putih.
-   Objek dengan peluang < 0,5 dilaporkan sebagai "Bukan Jagung Ketan Putih" dan tidak
-   dinilai kelayakannya. Ini yang mencegah kerikil putih dinilai "Layak".
-3. Kelayakan (model penelitian S3): hanya untuk objek yang lolos tahap 2.
+2. Validasi jenis objek (opsional, `pemeriksa`): apakah objek itu biji jagung. Di layanan
+   /predict pemeriksanya Gemini API (pemeriksa_gemini.py). Objek yang bukan biji jagung tidak
+   dinilai kelayakannya. Validasi ini bukan bagian dari model penelitian.
+3. Kelayakan (model Custom CNN penelitian, config.SKENARIO_SISTEM): hanya untuk objek yang
+   lolos tahap 2. Keluarannya tetap dua kelas, Layak dan Tidak Layak (Batasan Masalah no. 2).
 
 Untuk foto satu benih di atas alas penelitian, potongan yang masuk ke model kelayakan sama
 dengan prapemrosesan Subbab 3.6: kotak benih diambil dari ke_biner() bila ada kontur Otsu
 yang menempati tempat yang sama (IoU >= 0,5). Jadi hasil kelayakan untuk foto seperti itu
-tidak berubah dibanding sebelum tahap penyaring ditambahkan.
+sama dengan evaluasi penelitian.
 """
 
 import math
@@ -104,20 +105,23 @@ def _skor(peluang):
     return math.floor(round(peluang * 100 * 100, 6)) / 100
 
 
-def analisis(citra, model_penyaring, model_kelayakan, sisi, sisi_min=None, sisi_maks=None):
-    """Kembalikan daftar objek: kotak (piksel), jenis, peluang, dan hasil kelayakan.
+def analisis(citra, model_kelayakan, sisi, pemeriksa=None, sisi_min=None, sisi_maks=None):
+    """Kembalikan daftar objek: kotak (piksel), jenis, dan hasil kelayakan.
 
     `citra` sudah berskala lebar acuan (samakan_lebar atau samakan_skala_frame).
+    `pemeriksa(citra, daftar_kotak)` mengembalikan True/False (biji jagung) per kotak. Bila
+    None, semua objek dianggap benih dan langsung dinilai kelayakannya.
     """
     daftar_kontur, biner = cari_objek(citra, sisi_min, sisi_maks)
     if not daftar_kontur:
         return []
 
     kotak = [cv2.boundingRect(k) for k in daftar_kontur]
+    jagung = pemeriksa(citra, kotak) if pemeriksa else [True] * len(kotak)
     kotak_otsu = _kotak_otsu(citra)
 
     # Bila ada lebih dari satu objek, objek lain di dalam potongan ditutup warna latar,
-    # karena kedua model dilatih dengan satu objek per potongan.
+    # karena model dilatih dengan satu benih per potongan.
     if len(daftar_kontur) > 1:
         warna_latar = np.median(citra[::8, ::8][biner[::8, ::8] == 0], axis=0).astype(np.uint8)
         topeng_semua = []
@@ -126,45 +130,36 @@ def analisis(citra, model_penyaring, model_kelayakan, sisi, sisi_min=None, sisi_
             cv2.drawContours(topeng, [k], -1, 255, cv2.FILLED)
             topeng_semua.append(cv2.dilate(topeng, np.ones((31, 31), np.uint8)))
 
-    potongan_penyaring, potongan_kelayakan = [], []
-    for i, kt in enumerate(kotak):
+    indeks_jagung = [i for i, j in enumerate(jagung) if j]
+    potongan = []
+    for i in indeks_jagung:
+        kt = kotak[i]
         bersih = citra
         if len(daftar_kontur) > 1:
             bersih = citra.copy()
             for j, topeng in enumerate(topeng_semua):
                 if j != i:
                     bersih[topeng > 0] = warna_latar
-        potongan_penyaring.append(pp.ke_masukan_model(pp.ubah_ukuran(pp.potong_persegi(bersih, kt, sisi_potong(kt, sisi)))))
-        # Kotak Otsu dipakai untuk model kelayakan bila menempati tempat yang sama (lihat docstring modul).
+        # Kotak Otsu dipakai bila menempati tempat yang sama (lihat docstring modul).
         terbaik = max(kotak_otsu, key=lambda o: _iou(o, kt), default=None)
         kt_kelayakan = terbaik if terbaik is not None and _iou(terbaik, kt) >= 0.5 else kt
-        potongan_kelayakan.append(pp.ke_masukan_model(pp.ubah_ukuran(
+        potongan.append(pp.ke_masukan_model(pp.ubah_ukuran(
             pp.potong_persegi(bersih, kt_kelayakan, sisi_potong(kt_kelayakan, sisi)))))
 
-    # Benih bisa tergeletak ke arah mana pun. Penyaring dilatih dengan augmentasi rotasi 0/90/180/270
-    # derajat, jadi keputusannya diambil dari rata-rata peluang keempat putaran (test-time augmentation).
-    putaran = config.PUTARAN_PENYARING
-    masukan = np.stack([np.rot90(p, k) for p in potongan_penyaring for k in range(putaran)])
-    peluang_ketan = model_penyaring(masukan, training=False).numpy().reshape(len(kotak), putaran).mean(axis=1)
-    indeks_ketan = [i for i, p in enumerate(peluang_ketan) if p >= 0.5]
     peluang_layak = {}
-    if indeks_ketan:
-        keluaran = model_kelayakan(np.stack([potongan_kelayakan[i] for i in indeks_ketan]), training=False)
-        peluang_layak = dict(zip(indeks_ketan, keluaran.numpy().ravel()))
+    if potongan:
+        keluaran = model_kelayakan(np.stack(potongan), training=False).numpy().ravel()
+        peluang_layak = dict(zip(indeks_jagung, keluaran))
 
     hasil = []
     for i, (x, y, w, h) in enumerate(kotak):
-        p_ketan = float(peluang_ketan[i])
-        objek = {"x": x, "y": y, "w": w, "h": h, "peluang_ketan": round(p_ketan, 4)}
+        objek = {"x": x, "y": y, "w": w, "h": h}
         if i in peluang_layak:
             p = float(peluang_layak[i])
-            objek.update(jenis=KETAN, skor_jenis=_skor(p_ketan), peluang_layak=round(p, 4),
-                         prediksi="Layak" if p >= 0.5 else "Tidak Layak",
+            objek.update(jenis=KETAN, peluang_layak=round(p, 4), prediksi="Layak" if p >= 0.5 else "Tidak Layak",
                          skor_kepercayaan=_skor(p if p >= 0.5 else 1 - p))
         else:
-            # Persamaan 3-3 diterapkan pada keluaran penyaring: kepercayaan bahwa objek BUKAN jagung ketan putih.
-            objek.update(jenis=BUKAN, skor_jenis=_skor(1 - p_ketan), peluang_layak=None,
-                         prediksi=BUKAN, skor_kepercayaan=_skor(1 - p_ketan))
+            objek.update(jenis=BUKAN, peluang_layak=None, prediksi=BUKAN, skor_kepercayaan=None)
         hasil.append(objek)
     return hasil
 
@@ -178,7 +173,7 @@ def gambar_kotak(citra, daftar_objek):
         x, y, w, h = o["x"], o["y"], o["w"], o["h"]
         c = warna[o["prediksi"]]
         cv2.rectangle(hasil, (x, y), (x + w, y + h), c, tebal)
-        teks = f"{o['prediksi']} {o['skor_kepercayaan']:.1f}%"
+        teks = o["prediksi"] if o["skor_kepercayaan"] is None else f"{o['prediksi']} {o['skor_kepercayaan']:.1f}%"
         skala = citra.shape[1] / 1500
         (tw, th), _ = cv2.getTextSize(teks, cv2.FONT_HERSHEY_SIMPLEX, skala, tebal)
         y_teks = y - 10 if y - th - 20 > 0 else y + h + th + 10

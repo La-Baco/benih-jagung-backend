@@ -4,10 +4,13 @@ Tujuannya dua:
 1. Laporan BAB IV menampilkan hasil uji semua skenario, bukan hanya model akhir.
 2. Memilih model untuk sistem yang tidak overfitting dan tidak terlalu percaya diri.
 
-Aturan pemilihan model sistem ditetapkan sebelum skrip dijalankan:
-- Ukuran utama adalah loss BCE pada data uji. Loss ini naik bila model salah, dan naik
-  jauh lebih besar bila model salah dengan keyakinan tinggi.
-- Bila selisih loss uji dua skenario kurang dari 0,01, dipilih yang parameternya lebih sedikit.
+Aturan pemilihan model sistem (diputuskan peneliti 27 November 2026, menggantikan aturan
+"loss uji terendah" yang sebelumnya memilih S3):
+- Akurasi uji tertinggi.
+- Bila sama, F1-score uji tertinggi; bila masih sama, FP (tidak layak terbaca layak) paling
+  sedikit, karena kesalahan inilah yang membuat benih buruk ikut ditanam.
+Pemilihan memakai data uji, sehingga akurasi uji model terpilih cenderung sedikit optimis.
+Hal ini perlu ditulis di laporan. Selisih antar skenario kecil (1-2 citra dari 150).
 Tanda overfitting dilaporkan dari selisih akurasi latih dan akurasi uji, serta rasio loss uji
 terhadap loss latih. Data latih dinilai tanpa augmentasi dan tanpa dropout (mode inferensi).
 """
@@ -117,11 +120,7 @@ def main():
         w.writerows(baris)
 
     # Aturan pemilihan model sistem (lihat docstring).
-    urut = sorted(baris, key=lambda b: b["loss_uji"])
-    terpilih = urut[0]
-    for calon in urut[1:]:
-        if calon["loss_uji"] - terpilih["loss_uji"] < 0.01 and calon["jumlah_parameter"] < terpilih["jumlah_parameter"]:
-            terpilih = calon
+    terpilih = min(baris, key=lambda b: (-b["akurasi_uji"], -b["f1_uji"], b["uji_fp"]))
 
     teks = ["Evaluasi keempat skenario (latih 700, validasi 150, uji 150 citra)", ""]
     teks.append(f"{'':<4}{'AkLatih':>8}{'LsLatih':>8}{'AkVal':>7}{'LsVal':>7}{'AkUji':>7}{'Pres':>7}{'Rec':>7}"
@@ -132,7 +131,7 @@ def main():
                     f"{b['f1_uji']:>7.4f}{b['loss_uji']:>7.4f}{b['ece_uji']:>7.4f}{b['uji_fp']:>4}{b['uji_fn']:>4}"
                     f"{b['uji_skor_tampil_99_99']:>8}{b['uji_salah_dengan_skor_95']:>11}"
                     f"{b['selisih_akurasi_latih_uji']:>8.4f}{b['rasio_loss_uji_latih']:>7.2f}")
-    teks += ["", f"Model untuk sistem: {terpilih['skenario']} (loss uji terendah; selisih < 0,01 -> parameter lebih sedikit)"]
+    teks += ["", f"Model untuk sistem: {terpilih['skenario']} (akurasi uji tertinggi; bila sama: F1 tertinggi, lalu FP paling sedikit)"]
     print("\n".join(teks))
     (FOLDER_BUKTI / "hasil_semua_skenario.txt").write_text("\n".join(teks) + "\n", encoding="utf-8")
 

@@ -208,7 +208,7 @@ def hasil_penelitian():
             for b in csv.DictReader(f)
         ]
 
-    # Model sistem dipilih 11_evaluasi_semua_skenario.py (loss uji terendah, saat ini S3). Bila hasil
+    # Model sistem dipilih 11_evaluasi_semua_skenario.py (config.SKENARIO_SISTEM). Bila hasil
     # skrip itu belum ada, dipakai model akhir 05_evaluasi.py (loss validasi terendah).
     folder_semua = folder / "05_evaluasi" / "semua_skenario"
     if (folder_semua / "hasil_semua_skenario.txt").exists():
@@ -362,7 +362,7 @@ def ganti_model():
     sumber = (request.get_json(silent=True) or {}).get("sumber", "")
     if sumber == "penelitian":
         asal = config.FOLDER_MODEL_PENELITIAN
-        keterangan = {"sumber": "penelitian", "nama": "Model penelitian S3"}
+        keterangan = {"sumber": "penelitian", "nama": model_aktif.NAMA_MODEL_PENELITIAN}
     else:
         asal = folder_model(sumber)
         info = baca_model_unggahan(asal)

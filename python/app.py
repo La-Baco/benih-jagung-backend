@@ -19,6 +19,7 @@ from flask import Flask, jsonify, request
 import config
 import deteksi_objek
 import model_aktif
+import pemeriksa_gemini
 import prapemrosesan as pp
 from admin import admin
 
@@ -57,7 +58,8 @@ def berkas_terlalu_besar(_):
 @app.get("/")
 def cek_layanan():
     return jsonify(status="aktif", model=model_aktif.keterangan(), pelatihan=KETERANGAN_PELATIHAN,
-                   penyaring="Custom CNN jagung ketan putih / bukan (model/model_penyaring.keras)")
+                   validasi_objek=f"Gemini API ({config.GEMINI_MODEL})" if pemeriksa_gemini.aktif()
+                   else "tidak aktif (GEMINI_API_KEY belum diisi)")
 
 
 @app.post("/predict")
@@ -78,10 +80,22 @@ def predict():
 
     model, sisi = model_aktif.ambil()
     citra = pp.samakan_lebar(citra)
-    daftar_objek = deteksi_objek.analisis(citra, model_aktif.ambil_penyaring(), model, sisi)
+    pemeriksa = pemeriksa_gemini.periksa if pemeriksa_gemini.aktif() else None
+    try:
+        daftar_objek = deteksi_objek.analisis(citra, model, sisi, pemeriksa=pemeriksa)
+    except pemeriksa_gemini.GeminiGagal as e:
+        app.logger.warning("Validasi Gemini gagal: %s", e)
+        return gagal("Pemeriksaan objek sedang tidak tersedia. Coba beberapa saat lagi.", 503)
     if not daftar_objek:
         return gagal("Objek tidak terdeteksi. Letakkan satu butir benih di tengah alas polos, "
                      "lalu foto dari atas.", 422)
+
+    # Objek yang bukan biji jagung tidak dinilai. Bila tidak ada satu pun biji jagung, foto ditolak
+    # seperti citra tidak valid (Gambar 3.7), karena model hanya mengenal kelas Layak dan Tidak Layak.
+    daftar_objek = [o for o in daftar_objek if o["jenis"] == deteksi_objek.KETAN]
+    if not daftar_objek:
+        return gagal("Objek pada foto tidak dikenali sebagai biji jagung. Foto satu butir benih "
+                     "jagung ketan putih di tengah alas hitam.", 422)
 
     # Hasil utama adalah objek terbesar, sesuai satu benih per foto (Batasan Masalah).
     # Skor kepercayaan memakai Persamaan 3-2 dan 3-3, dipotong ke bawah 2 desimal supaya
@@ -123,8 +137,9 @@ def deteksi():
 
     Ini perluasan di luar ruang lingkup skripsi (Batasan no. 4 hanya satu benih
     per citra) dan akurasinya tidak dievaluasi di BAB IV. Alurnya sama dengan
-    /predict (deteksi objek, penyaring, kelayakan); ukuran objek dibatasi pada
-    rentang ukuran benih karena jarak kamera ke alas kurang lebih tetap.
+    /predict tanpa validasi Gemini, karena frame dikirim terus-menerus dan akan
+    menghabiskan kuota; ukuran objek dibatasi pada rentang ukuran benih karena
+    jarak kamera ke alas kurang lebih tetap.
     """
     berkas = request.files.get("file")
     if berkas is None:
@@ -136,8 +151,8 @@ def deteksi():
     model, sisi = model_aktif.ambil()
     citra = samakan_skala_frame(citra)
     tinggi, lebar = citra.shape[:2]
-    daftar_objek = deteksi_objek.analisis(citra, model_aktif.ambil_penyaring(), model, sisi,
-                                          sisi_min=config.SISI_MIN_DETEKSI, sisi_maks=config.SISI_MAKS_DETEKSI)
+    daftar_objek = deteksi_objek.analisis(citra, model, sisi, sisi_min=config.SISI_MIN_DETEKSI,
+                                          sisi_maks=config.SISI_MAKS_DETEKSI)
     return jsonify(status="sukses", lebar=lebar, tinggi=tinggi,
                    benih=[kotak_relatif(o, lebar, tinggi) for o in daftar_objek])
 
