@@ -1,0 +1,14 @@
+{
+  "sumber": "penelitian",
+  "nama": "Model penelitian S4 (Colab Augmentasi Baru)",
+  "skenario": "S4",
+  "jumlah_blok": 4,
+  "ukuran_batch": 32,
+  "jumlah_parameter": 3452353,
+  "loss_uji": 0.1705,
+  "akurasi_uji": "94.00%",
+  "presisi_uji": "94.59%",
+  "recall_uji": "93.33%",
+  "f1_uji": "93.96%",
+  "diaktifkan": "2026-11-27"
+}

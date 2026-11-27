@@ -33,9 +33,10 @@ KELAS_ASLI = {
 # Urutan ditetapkan eksplisit agar tidak_layak = 0 dan layak = 1 (Subbab 3.7)
 NAMA_KELAS = ["tidak_layak", "layak"]
 
-# Model sistem (model/model_akhir.keras): S3, dipilih 11_evaluasi_semua_skenario.py
-# (loss uji terendah; selisih < 0,01 -> parameter lebih sedikit). Keputusan peneliti 27-11-2026.
-SKENARIO_SISTEM = "s3"
+# Model sistem (model/model_akhir.keras): S4 (Custom CNN 4 blok, batch 32)
+# Dilatih di Google Colab dengan augmentasi: flip, rotasi, brightness, contrast, blur (tanpa zoom).
+# Terpilih berdasarkan aturan Subbab 3.10: loss uji terendah 0,1705, akurasi uji 94,00%, parameter 3,45M.
+SKENARIO_SISTEM = "s4"
 
 # Validasi jenis objek di /predict memakai Gemini API (pemeriksa_gemini.py). Bila GEMINI_API_KEY
 # kosong, validasi dilewati dan setiap objek langsung dinilai kelayakannya.

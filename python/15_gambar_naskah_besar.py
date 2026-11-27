@@ -54,7 +54,7 @@ def kisi_tahapan(sumber, tujuan, kolom=3):
 
 
 def augmentasi():
-    nama = "tidak_layak_001.png"
+    nama = "layak_020.png"        # benih utuh dengan ujung jelas, sehingga arah rotasi mudah terlihat
     path = next((config.FOLDER_OLAH / "semua").rglob(nama))
     im = cv2.cvtColor(cv2.imread(str(path)), cv2.COLOR_BGR2RGB)
     varian = [("asli (0°)", im), ("rotasi 90°", np.rot90(im, 1)), ("rotasi 180°", np.rot90(im, 2)),
@@ -69,7 +69,7 @@ def augmentasi():
     plt.close(fig)
 
 
-def salah_s3(kolom=4, ukuran=224):
+def salah_s3(kolom=6, ukuran=224):
     jenis = {}
     with open(config.FOLDER_DATASET / "jenis_kerusakan.csv", encoding="utf-8") as f:
         for b in csv.DictReader(f):
@@ -77,7 +77,7 @@ def salah_s3(kolom=4, ukuran=224):
     with open(BUKTI / "05_evaluasi" / "semua_skenario" / "prediksi_uji_s3.csv", encoding="utf-8") as f:
         p = [b for b in csv.DictReader(f) if b["label"] != b["prediksi"]]
     p.sort(key=lambda b: (b["label"] == "0", b["berkas"]))     # FN dulu, lalu FP
-    tinggi_label = 72
+    tinggi_label = 84
     baris = (len(p) + kolom - 1) // kolom
     lembar = np.full((baris * (ukuran + tinggi_label), kolom * (ukuran + 12), 3), 255, np.uint8)
     for i, b in enumerate(p):
@@ -90,7 +90,7 @@ def salah_s3(kolom=4, ukuran=224):
         if ket == "FP":
             teks.append(jenis.get(b["berkas"], "-"))
         for j, t in enumerate(teks):
-            cv2.putText(lembar, t, (x + 2, y + ukuran + 20 + j * 22), cv2.FONT_HERSHEY_SIMPLEX, 0.58, (0, 0, 0), 1,
+            cv2.putText(lembar, t, (x + 2, y + ukuran + 24 + j * 26), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2,
                         cv2.LINE_AA)
     cv2.imwrite(str(HASIL / "salah_prediksi_s3_besar.png"), lembar)
 

@@ -2,3 +2,6 @@ venv/
 __pycache__/
 *.pyc
 model_unggahan/
+model/*_backup*.keras
+model/*_colab.keras
+test_backend_model.py
