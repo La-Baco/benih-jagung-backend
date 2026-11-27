@@ -53,13 +53,22 @@ class KlasifikasiController extends Controller
 
     public function index(Request $request)
     {
-        $riwayat = RiwayatKlasifikasi::where('user_id', $request->user()->id)->latest('id')->paginate(15);
+        $pengguna = $request->user();
+        $riwayat = RiwayatKlasifikasi::where('user_id', $pengguna->id)->latest('id')->paginate(15);
+        $jumlah = RiwayatKlasifikasi::where('user_id', $pengguna->id)
+            ->selectRaw('hasil_prediksi, count(*) as n')->groupBy('hasil_prediksi')->pluck('n', 'hasil_prediksi');
 
         return response()->json([
             'data' => $riwayat->getCollection()->map(fn ($item) => $this->format($item)),
             'halaman' => $riwayat->currentPage(),
             'halaman_terakhir' => $riwayat->lastPage(),
             'total' => $riwayat->total(),
+            // Untuk halaman Beranda dan Akun aplikasi (Gambar 3.15a dan 3.16b).
+            'ringkasan' => [
+                'layak' => (int) ($jumlah['Layak'] ?? 0),
+                'tidak_layak' => (int) ($jumlah['Tidak Layak'] ?? 0),
+                'bergabung' => $pengguna->created_at?->toIso8601String(),
+            ],
         ]);
     }
 

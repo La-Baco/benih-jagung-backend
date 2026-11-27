@@ -128,7 +128,10 @@ class ApiAplikasiTest extends TestCase
         $this->actingAs($petani, 'sanctum')->getJson('/api/riwayat')
             ->assertOk()
             ->assertJsonPath('total', 1)
-            ->assertJsonPath('data.0.hasil_prediksi', 'Tidak Layak');
+            ->assertJsonPath('data.0.hasil_prediksi', 'Tidak Layak')
+            ->assertJsonPath('ringkasan.layak', 0)
+            ->assertJsonPath('ringkasan.tidak_layak', 1)
+            ->assertJsonPath('ringkasan.bergabung', $petani->created_at->toIso8601String());
 
         $this->actingAs($petani, 'sanctum')->getJson("/api/riwayat/{$milikLain->id}/gambar")->assertNotFound();
     }
