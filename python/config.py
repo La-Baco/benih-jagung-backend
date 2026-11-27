@@ -33,9 +33,9 @@ KELAS_ASLI = {
 # Urutan ditetapkan eksplisit agar tidak_layak = 0 dan layak = 1 (Subbab 3.7)
 NAMA_KELAS = ["tidak_layak", "layak"]
 
-# Model sistem (model/model_akhir.keras): skenario dengan akurasi dan F1-score uji tertinggi
-# serta FP paling sedikit (11_evaluasi_semua_skenario.py).
-SKENARIO_SISTEM = "s1"
+# Model sistem (model/model_akhir.keras): S3, dipilih 11_evaluasi_semua_skenario.py
+# (loss uji terendah; selisih < 0,01 -> parameter lebih sedikit). Keputusan peneliti 27-11-2026.
+SKENARIO_SISTEM = "s3"
 
 # Validasi jenis objek di /predict memakai Gemini API (pemeriksa_gemini.py). Bila GEMINI_API_KEY
 # kosong, validasi dilewati dan setiap objek langsung dinilai kelayakannya.
